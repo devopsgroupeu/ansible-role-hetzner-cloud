@@ -1,9 +1,29 @@
 ---
 # =============================================================================
-# primary_ips.yml — Phase 2: implement hetzner.hcloud.primary_ip loop
+# primary_ips.yml — create/manage pre-allocated stable public IPs
+#
+# Module: hetzner.hcloud.primary_ip
+# Loop:   hcloud_primary_ips
+# Gate:   called only when hcloud_primary_ips | length > 0 and hcloud_provision
+#         (both enforced in main.yml)
+#
+# Use location (not the deprecated datacenter param; removal scheduled 2026-07-01).
+# assignee_type is optional as of collection v6.9.0.
+# A primary IP cannot be reassigned to a running server — the server must be off.
 # =============================================================================
 
-- name: Primary IPs task — not yet implemented (Phase 2)
-  ansible.builtin.debug:
-    msg: "primary_ips.yml reached (Phase 2 will implement hetzner.hcloud.primary_ip)"
-  when: false
+- name: Manage primary IPs
+  hetzner.hcloud.primary_ip:
+    name: "{{ item.name }}"
+    type: "{{ item.type }}"
+    location: "{{ item.location | default(omit) }}"
+    assignee_type: "{{ item.assignee_type | default(omit) }}"
+    assignee_id: "{{ item.assignee_id | default(omit) }}"
+    auto_delete: "{{ item.auto_delete | default(false) }}"
+    delete_protection: "{{ item.delete_protection | default(omit) }}"
+    labels: "{{ {hcloud_managed_label_key: hcloud_managed_label_value} | combine(item.labels | default({})) }}"
+    state: "{{ item.state | default(hcloud_state) }}"
+  loop: "{{ hcloud_primary_ips }}"
+  loop_control:
+    label: "{{ item.name }} ({{ item.type }}, {{ item.state | default(hcloud_state) }})"
+  register: hcloud_primary_ip_results

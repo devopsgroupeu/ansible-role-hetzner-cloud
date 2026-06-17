@@ -1,9 +1,29 @@
 ---
 # =============================================================================
-# floating_ips.yml — Phase 2: implement hetzner.hcloud.floating_ip loop
+# floating_ips.yml — create/manage location-scoped floating IPs
+#
+# Module: hetzner.hcloud.floating_ip
+# Loop:   hcloud_floating_ips
+# Gate:   called only when hcloud_floating_ips | length > 0 and hcloud_provision
+#         (both enforced in main.yml)
+#
+# home_location is required on create unless 'server' is given (the IP then
+# anchors to that server's location). Assignment is managed via the 'server'
+# param on this module — haproxy-keepalived subsequently flips it between
+# proxy nodes at runtime via the Hetzner API.
 # =============================================================================
 
-- name: Floating IPs task — not yet implemented (Phase 2)
-  ansible.builtin.debug:
-    msg: "floating_ips.yml reached (Phase 2 will implement hetzner.hcloud.floating_ip)"
-  when: false
+- name: Manage floating IPs
+  hetzner.hcloud.floating_ip:
+    name: "{{ item.name }}"
+    type: "{{ item.type }}"
+    home_location: "{{ item.home_location | default(omit) }}"
+    server: "{{ item.server | default(omit) }}"
+    description: "{{ item.description | default(omit) }}"
+    delete_protection: "{{ item.delete_protection | default(omit) }}"
+    labels: "{{ {hcloud_managed_label_key: hcloud_managed_label_value} | combine(item.labels | default({})) }}"
+    state: "{{ item.state | default(hcloud_state) }}"
+  loop: "{{ hcloud_floating_ips }}"
+  loop_control:
+    label: "{{ item.name }} ({{ item.type }}, {{ item.state | default(hcloud_state) }})"
+  register: hcloud_floating_ip_results

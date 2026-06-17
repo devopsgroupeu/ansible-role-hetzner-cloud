@@ -1,9 +1,32 @@
 ---
 # =============================================================================
-# volumes.yml — Phase 2: implement hetzner.hcloud.volume loop
+# volumes.yml — create/manage persistent block storage volumes
+#
+# Module: hetzner.hcloud.volume
+# Loop:   hcloud_volumes
+# Gate:   called only when hcloud_volumes | length > 0 and hcloud_provision
+#         (both enforced in main.yml)
+#
+# location is required when state=present and no server attachment is given.
+# format is a create-time-only parameter; changing it on an existing volume has
+# no effect. automount only applies when a server is attached.
+#
+# v5+ detach change: omitting 'server' no longer auto-detaches a volume.
+# Use hetzner.hcloud.volume_attachment with state=absent to detach explicitly.
 # =============================================================================
 
-- name: Volumes task — not yet implemented (Phase 2)
-  ansible.builtin.debug:
-    msg: "volumes.yml reached (Phase 2 will implement hetzner.hcloud.volume)"
-  when: false
+- name: Manage volumes
+  hetzner.hcloud.volume:
+    name: "{{ item.name }}"
+    size: "{{ item.size | default(omit) }}"
+    location: "{{ item.location | default(omit) }}"
+    server: "{{ item.server | default(omit) }}"
+    format: "{{ item.format | default(omit) }}"
+    automount: "{{ item.automount | default(false) }}"
+    delete_protection: "{{ item.delete_protection | default(omit) }}"
+    labels: "{{ {hcloud_managed_label_key: hcloud_managed_label_value} | combine(item.labels | default({})) }}"
+    state: "{{ item.state | default(hcloud_state) }}"
+  loop: "{{ hcloud_volumes }}"
+  loop_control:
+    label: "{{ item.name }} ({{ item.state | default(hcloud_state) }})"
+  register: hcloud_volume_results

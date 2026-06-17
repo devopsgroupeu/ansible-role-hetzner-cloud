@@ -441,12 +441,19 @@ argument_specs:
               - ipv4
               - ipv6
             description: IP version.
-          datacenter:
+          location:
             type: str
             required: false
             description: >
-              Datacenter slug for placement (e.g. fsn1-dc14). Required when
-              state=present and no assignee.
+              Location slug for placement (e.g. fsn1, nbg1). Required when
+              state=present and no assignee. Use location, not the deprecated
+              datacenter param (scheduled for removal after 2026-07-01).
+          assignee_type:
+            type: str
+            required: false
+            description: >
+              Resource type the primary IP is assigned to (e.g. server).
+              Optional as of collection v6.9.0.
           assignee_id:
             type: int
             required: false
@@ -458,6 +465,10 @@ argument_specs:
             description: >
               When true, delete this primary IP when it is unassigned from its
               server.
+          delete_protection:
+            type: bool
+            required: false
+            description: Prevent accidental deletion of this resource.
           labels:
             type: dict
             required: false
@@ -502,6 +513,14 @@ argument_specs:
             type: str
             required: false
             description: Server name to assign the floating IP to initially.
+          description:
+            type: str
+            required: false
+            description: Human-readable description for this floating IP.
+          delete_protection:
+            type: bool
+            required: false
+            description: Prevent accidental deletion of this resource.
           labels:
             type: dict
             required: false
@@ -554,6 +573,10 @@ argument_specs:
             required: false
             default: false
             description: Whether to automatically mount the volume on the server.
+          delete_protection:
+            type: bool
+            required: false
+            description: Prevent accidental deletion of this resource.
           labels:
             type: dict
             required: false

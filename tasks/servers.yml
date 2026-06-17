@@ -1,9 +1,35 @@
 ---
 # =============================================================================
-# servers.yml — Phase 2: implement hetzner.hcloud.server loop
+# servers.yml — create/manage compute instances
+#
+# Module: hetzner.hcloud.server
+# Loop:   hcloud_servers
+# Gate:   called only when hcloud_servers | length > 0 and hcloud_provision
+#         (both enforced in main.yml)
+#
+# no_log is set here because user_data may contain join tokens or secrets.
+# The module_defaults block in main.yml already carries no_log on the block,
+# but it is restated here explicitly for auditability.
 # =============================================================================
 
-- name: Servers task — not yet implemented (Phase 2)
-  ansible.builtin.debug:
-    msg: "servers.yml reached (Phase 2 will implement hetzner.hcloud.server)"
-  when: false
+- name: Manage servers
+  hetzner.hcloud.server:
+    name: "{{ item.name }}"
+    server_type: "{{ item.server_type | default(omit) }}"
+    image: "{{ item.image | default(hcloud_default_image) }}"
+    location: "{{ item.location | default(hcloud_default_location) }}"
+    ssh_keys: "{{ item.ssh_keys | default([]) }}"
+    firewalls: "{{ item.firewalls | default(omit) }}"
+    placement_group: "{{ item.placement_group | default(omit) }}"
+    volumes: "{{ item.volumes | default(omit) }}"
+    user_data: "{{ item.user_data | default(omit) }}"
+    enable_ipv4: "{{ item.enable_ipv4 | default(true) }}"
+    enable_ipv6: "{{ item.enable_ipv6 | default(false) }}"
+    backups: "{{ item.backups | default(false) }}"
+    labels: "{{ {hcloud_managed_label_key: hcloud_managed_label_value} | combine(item.labels | default({})) }}"
+    state: "{{ item.state | default(hcloud_state) }}"
+  loop: "{{ hcloud_servers }}"
+  loop_control:
+    label: "{{ item.name }} ({{ item.state | default(hcloud_state) }})"
+  register: hcloud_server_results
+  no_log: "{{ hcloud_no_log | default(true) }}"

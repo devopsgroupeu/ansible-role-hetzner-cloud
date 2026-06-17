@@ -143,12 +143,14 @@ hcloud_server_networks: []
 
 # ── Primary IPs ───────────────────────────────────────────────────────────────
 # Pre-created stable public IPs that survive server rebuild/deletion.
-# Required per-item: name, type (ipv4|ipv6), datacenter (when state=present).
+# Required per-item: name, type (ipv4|ipv6), location (when state=present).
+# Use location (not the deprecated datacenter; removal scheduled 2026-07-01).
 # hcloud_primary_ips:
 #   - name: cp-01-ipv4
 #     type: ipv4
-#     datacenter: fsn1-dc14
-#     assignee_id: ""
+#     location: fsn1
+#     assignee_type: server
+#     assignee_id: ~
 #     auto_delete: false
 #     state: present
 hcloud_primary_ips: []

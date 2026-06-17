@@ -72,6 +72,18 @@
         labels:
           role: vip
 
+    hcloud_primary_ips:
+      - name: cp-01-ipv4
+        type: ipv4
+        location: nbg1
+        auto_delete: false
+
+    hcloud_volumes:
+      - name: vault-data
+        size: 20
+        location: nbg1
+        automount: false
+
   tasks:
     - name: Include hetzner-cloud role
       ansible.builtin.include_role:

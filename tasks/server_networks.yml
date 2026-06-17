@@ -1,9 +1,25 @@
 ---
 # =============================================================================
-# server_networks.yml — Phase 2: implement hetzner.hcloud.server_network loop
+# server_networks.yml — attach servers to private networks
+#
+# Module: hetzner.hcloud.server_network
+# Loop:   hcloud_server_networks
+# Gate:   called only when hcloud_server_networks | length > 0 and hcloud_provision
+#         (both enforced in main.yml)
+#
+# Both the referenced server and network must already exist.
+# Dependency order: networks → servers → server_networks (enforced by main.yml).
+# The server_network module does not support a labels parameter.
 # =============================================================================
 
-- name: Server-network attachments task — not yet implemented (Phase 2)
-  ansible.builtin.debug:
-    msg: "server_networks.yml reached (Phase 2 will implement hetzner.hcloud.server_network)"
-  when: false
+- name: Manage server network attachments
+  hetzner.hcloud.server_network:
+    server: "{{ item.server }}"
+    network: "{{ item.network }}"
+    ip: "{{ item.ip | default(omit) }}"
+    alias_ips: "{{ item.alias_ips | default(omit) }}"
+    state: "{{ item.state | default(hcloud_state) }}"
+  loop: "{{ hcloud_server_networks }}"
+  loop_control:
+    label: "{{ item.server }}/{{ item.network }} ({{ item.state | default(hcloud_state) }})"
+  register: hcloud_server_network_results
