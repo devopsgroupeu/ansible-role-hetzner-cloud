@@ -1,0 +1,59 @@
+---
+# =============================================================================
+# molecule/live/converge.yml — LIVE provisioning converge
+#
+# CREATES REAL HETZNER CLOUD RESOURCES. Needs HCLOUD_TOKEN in environment.
+# Uses cheapest type (cx22) in nbg1 to minimise cost.
+# `molecule test -s live` always destroys resources after verify.
+# =============================================================================
+
+- name: Converge (live — provisions real Hetzner resources)
+  hosts: all
+  connection: local
+  gather_facts: false
+  become: false
+
+  vars:
+    # Live gate — must remain true for this scenario
+    hcloud_provision: true
+
+    # Suppress noisy output by default; set false only when debugging
+    hcloud_no_log: true
+
+    hcloud_ssh_keys:
+      - name: molecule-live-test-key
+        public_key: "{{ lookup('ansible.builtin.env', 'MOLECULE_TEST_SSH_PUBKEY', default='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMoleculeTestKeyNotForProduction molecule-live@ci') }}"
+        labels:
+          environment: molecule-live
+
+    hcloud_networks:
+      - name: molecule-live-net
+        ip_range: "10.99.0.0/16"
+        labels:
+          environment: molecule-live
+
+    hcloud_subnetworks:
+      - network: molecule-live-net
+        type: cloud
+        network_zone: eu-central
+        ip_range: "10.99.1.0/24"
+
+    hcloud_servers:
+      - name: molecule-live-server
+        server_type: cx22
+        image: debian-12
+        location: nbg1
+        ssh_keys:
+          - molecule-live-test-key
+        enable_ipv6: false
+        labels:
+          environment: molecule-live
+          role: test
+
+    hcloud_server_networks:
+      - server: molecule-live-server
+        network: molecule-live-net
+        ip: "10.99.1.10"
+
+  roles:
+    - ansible-role-hetzner-cloud

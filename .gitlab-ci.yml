@@ -1,0 +1,153 @@
+---
+# =============================================================================
+# GitLab CI/CD Pipeline for Ansible Role hetzner-cloud
+# =============================================================================
+# Stages:
+#   lint    — yamllint + ansible-lint --profile production + syntax-check
+#   test    — molecule default (offline, no HCLOUD_TOKEN)
+#             molecule live (schedule/manual only, gated on $HCLOUD_TOKEN)
+#   release — Galaxy publish (disabled; uncomment when ready, SemVer tag only)
+# =============================================================================
+
+stages:
+  - lint
+  - test
+  - release
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  ANSIBLE_FORCE_COLOR: "1"
+  PY_COLORS: "1"
+
+cache:
+  paths:
+    - .cache/pip
+    - venv/
+
+# =============================================================================
+# Lint Stage
+# =============================================================================
+
+yamllint:
+  stage: lint
+  image: python:3.11-slim
+  cache: []
+  before_script:
+    - pip install yamllint
+  script:
+    - yamllint defaults/ handlers/ tasks/ templates/ molecule/ meta/ examples/ .gitlab-ci.yml .yamllint
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_COMMIT_BRANCH =~ /^feature\/.*/'
+
+ansible-lint:
+  stage: lint
+  image: python:3.11-slim
+  cache: []
+  before_script:
+    - pip install ansible-lint
+  script:
+    - ansible-lint --profile production .
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_COMMIT_BRANCH =~ /^feature\/.*/'
+
+syntax-check:
+  stage: lint
+  image: python:3.11-slim
+  cache: []
+  before_script:
+    - pip install ansible-core
+    - ansible-galaxy collection install -r requirements.yml
+  script:
+    - ansible-playbook --syntax-check molecule/default/converge.yml
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_COMMIT_BRANCH =~ /^feature\/.*/'
+
+# =============================================================================
+# Test Stage — Molecule Tests
+# =============================================================================
+
+# Shared template for molecule jobs
+.molecule_test:
+  stage: test
+  image: python:3.11
+  services:
+    - docker:24-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+  before_script:
+    - apt-get update && apt-get install -y docker.io
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+
+# Offline scenario — no HCLOUD_TOKEN, no billable resources
+molecule:default:
+  extends: .molecule_test
+  script:
+    - source venv/bin/activate
+    - molecule test -s default
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_COMMIT_BRANCH =~ /^feature\/.*/'
+
+# Live scenario — NEEDS a real HCLOUD_TOKEN; creates billable resources.
+# Only runs on schedule (nightly) or as a manual button on main.
+# Destroy always runs (molecule test) so nothing lingers after the job.
+molecule:live:
+  extends: .molecule_test
+  script:
+    - source venv/bin/activate
+    - molecule test -s live
+  variables:
+    HCLOUD_TOKEN: "$HCLOUD_TOKEN"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $HCLOUD_TOKEN'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
+  allow_failure: true
+
+# =============================================================================
+# Release Stage — Publish to Ansible Galaxy (DISABLED — uncomment when ready)
+# =============================================================================
+# Gated on a SemVer git tag (^vX.Y.Z). Mirrors rke2 / haproxy-keepalived roles.
+
+# publish:galaxy:
+#   stage: release
+#   image: python:3.11-slim
+#   before_script:
+#     - pip install ansible
+#   script:
+#     - |
+#       if [ -n "$GALAXY_API_KEY" ]; then
+#         ansible-galaxy role import --api-key $GALAXY_API_KEY $CI_PROJECT_NAMESPACE $CI_PROJECT_NAME
+#         echo "Published to Ansible Galaxy"
+#       else
+#         echo "GALAXY_API_KEY not set, skipping publication"
+#       fi
+#   rules:
+#     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+
+# publish:galaxy:manual:
+#   stage: release
+#   image: python:3.11-slim
+#   before_script:
+#     - pip install ansible
+#   script:
+#     - ansible-galaxy role import --api-key $GALAXY_API_KEY $CI_PROJECT_NAMESPACE $CI_PROJECT_NAME
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == "main"'
+#       when: manual
+#   allow_failure: true

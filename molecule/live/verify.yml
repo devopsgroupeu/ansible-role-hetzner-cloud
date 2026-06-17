@@ -1,0 +1,42 @@
+---
+# =============================================================================
+# molecule/live/verify.yml — assert real resources exist in Hetzner API
+#
+# Requires HCLOUD_TOKEN. Runs hetzner.hcloud.*_info modules to query live state.
+# =============================================================================
+
+- name: Verify live resources were created
+  hosts: all
+  connection: local
+  gather_facts: false
+  become: false
+
+  tasks:
+    - name: Query provisioned server info
+      hetzner.hcloud.server_info:
+        api_token: "{{ lookup('ansible.builtin.env', 'HCLOUD_TOKEN') }}"
+        name: molecule-live-server
+      register: server_info
+
+    - name: Assert server was created and is running
+      ansible.builtin.assert:
+        that:
+          - server_info.hcloud_server_info | length == 1
+          - server_info.hcloud_server_info[0].status == "running"
+          - server_info.hcloud_server_info[0].server_type.name == "cx22"
+        fail_msg: "molecule-live-server was not found or is not running."
+        success_msg: "molecule-live-server exists and is running."
+
+    - name: Query provisioned network info
+      hetzner.hcloud.network_info:
+        api_token: "{{ lookup('ansible.builtin.env', 'HCLOUD_TOKEN') }}"
+        name: molecule-live-net
+      register: network_info
+
+    - name: Assert private network was created
+      ansible.builtin.assert:
+        that:
+          - network_info.hcloud_network_info | length == 1
+          - network_info.hcloud_network_info[0].ip_range == "10.99.0.0/16"
+        fail_msg: "molecule-live-net was not found."
+        success_msg: "molecule-live-net exists with correct IP range."

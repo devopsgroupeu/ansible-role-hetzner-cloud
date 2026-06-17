@@ -1,0 +1,55 @@
+---
+# =============================================================================
+# molecule/live/molecule.yml — LIVE delegated scenario
+#
+# IMPORTANT: This scenario creates REAL Hetzner Cloud resources.
+# It is NOT part of default CI. It requires a valid HCLOUD_TOKEN and will
+# INCUR BILLING on your Hetzner account (throwaway project recommended).
+#
+# Intended use:
+#   - Nightly scheduled CI job (gated on $HCLOUD_TOKEN and schedule trigger)
+#   - Manual opt-in on main branch (CI manual button)
+#   - Local developer testing against a dedicated test project
+#
+# Usage:
+#   export HCLOUD_TOKEN="your-throwaway-project-token"
+#   molecule test -s live
+#
+# Resources created: cx22 server in nbg1 (cheapest type / EU location).
+# Resources are always destroyed at the end of `molecule test` (even on failure).
+# Do NOT run `molecule converge -s live` without `molecule destroy -s live` after.
+# =============================================================================
+
+dependency:
+  name: galaxy
+  options:
+    requirements-file: requirements.yml
+
+driver:
+  name: default
+
+platforms:
+  - name: localhost
+
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/.."
+    HCLOUD_TOKEN: "${HCLOUD_TOKEN}"
+  inventory:
+    hosts:
+      all:
+        hosts:
+          localhost:
+            ansible_connection: local
+
+verifier:
+  name: ansible
+
+scenario:
+  test_sequence:
+    - dependency
+    - syntax
+    - converge
+    - verify
+    - destroy

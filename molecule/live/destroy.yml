@@ -1,0 +1,48 @@
+---
+# =============================================================================
+# molecule/live/destroy.yml — always-destroy teardown for live scenario
+#
+# Removes all resources created by converge.yml.
+# This runs automatically at the end of `molecule test -s live` (even on failure).
+# =============================================================================
+
+- name: Destroy live resources
+  hosts: all
+  connection: local
+  gather_facts: false
+  become: false
+
+  vars:
+    hcloud_provision: true
+    hcloud_allow_teardown: true
+    hcloud_no_log: true
+
+    hcloud_server_networks:
+      - server: molecule-live-server
+        network: molecule-live-net
+        state: absent
+
+    hcloud_servers:
+      - name: molecule-live-server
+        server_type: cx22
+        state: absent
+
+    hcloud_subnetworks:
+      - network: molecule-live-net
+        type: cloud
+        network_zone: eu-central
+        ip_range: "10.99.1.0/24"
+        state: absent
+
+    hcloud_networks:
+      - name: molecule-live-net
+        ip_range: "10.99.0.0/16"
+        state: absent
+
+    hcloud_ssh_keys:
+      - name: molecule-live-test-key
+        public_key: ""
+        state: absent
+
+  roles:
+    - ansible-role-hetzner-cloud
