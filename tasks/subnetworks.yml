@@ -1,9 +1,24 @@
 ---
 # =============================================================================
-# subnetworks.yml — Phase 2: implement hetzner.hcloud.subnetwork loop
+# subnetworks.yml — create/manage subnets within private networks
+#
+# Module: hetzner.hcloud.subnetwork
+# Loop:   hcloud_subnetworks
+# Gate:   called only when hcloud_subnetworks | length > 0 and hcloud_provision
+#         (both enforced in main.yml)
+#
+# Note: subnetwork module has no labels parameter (no resource-level label support).
 # =============================================================================
 
-- name: Subnetworks task — not yet implemented (Phase 2)
-  ansible.builtin.debug:
-    msg: "subnetworks.yml reached (Phase 2 will implement hetzner.hcloud.subnetwork)"
-  when: false
+- name: Manage subnetworks
+  hetzner.hcloud.subnetwork:
+    network: "{{ item.network }}"
+    type: "{{ item.type }}"
+    network_zone: "{{ item.network_zone }}"
+    ip_range: "{{ item.ip_range }}"
+    vswitch_id: "{{ item.vswitch_id | default(omit) }}"
+    state: "{{ item.state | default(hcloud_state) }}"
+  loop: "{{ hcloud_subnetworks }}"
+  loop_control:
+    label: "{{ item.network }}/{{ item.ip_range }} ({{ item.state | default(hcloud_state) }})"
+  register: hcloud_subnetwork_results

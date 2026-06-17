@@ -1,9 +1,22 @@
 ---
 # =============================================================================
-# networks.yml — Phase 2: implement hetzner.hcloud.network loop
+# networks.yml — create/manage private RFC1918 networks
+#
+# Module: hetzner.hcloud.network
+# Loop:   hcloud_networks
+# Gate:   called only when hcloud_networks | length > 0 and hcloud_provision
+#         (both enforced in main.yml)
 # =============================================================================
 
-- name: Networks task — not yet implemented (Phase 2)
-  ansible.builtin.debug:
-    msg: "networks.yml reached (Phase 2 will implement hetzner.hcloud.network)"
-  when: false
+- name: Manage networks
+  hetzner.hcloud.network:
+    name: "{{ item.name }}"
+    ip_range: "{{ item.ip_range | default(omit) }}"
+    expose_routes_to_vswitch: "{{ item.expose_routes_to_vswitch | default(omit) }}"
+    delete_protection: "{{ item.delete_protection | default(omit) }}"
+    labels: "{{ {hcloud_managed_label_key: hcloud_managed_label_value} | combine(item.labels | default({})) }}"
+    state: "{{ item.state | default(hcloud_state) }}"
+  loop: "{{ hcloud_networks }}"
+  loop_control:
+    label: "{{ item.name }} ({{ item.state | default(hcloud_state) }})"
+  register: hcloud_network_results

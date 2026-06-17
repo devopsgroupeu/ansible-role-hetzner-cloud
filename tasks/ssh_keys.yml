@@ -1,11 +1,20 @@
 ---
 # =============================================================================
-# ssh_keys.yml — Phase 2: implement hetzner.hcloud.ssh_key loop
+# ssh_keys.yml — upload SSH public keys to Hetzner Cloud
+#
+# Module: hetzner.hcloud.ssh_key
+# Loop:   hcloud_ssh_keys
+# Gate:   called only when hcloud_ssh_keys | length > 0 and hcloud_provision
+#         (both enforced in main.yml)
 # =============================================================================
-# Stub placeholder — resource tasks are implemented in Phase 2+.
-# This file exists so tasks/main.yml include_tasks resolve without error.
 
-- name: SSH keys task — not yet implemented (Phase 2)
-  ansible.builtin.debug:
-    msg: "ssh_keys.yml reached (Phase 2 will implement hetzner.hcloud.ssh_key)"
-  when: false
+- name: Manage SSH keys
+  hetzner.hcloud.ssh_key:
+    name: "{{ item.name }}"
+    public_key: "{{ item.public_key | default(omit) }}"
+    labels: "{{ {hcloud_managed_label_key: hcloud_managed_label_value} | combine(item.labels | default({})) }}"
+    state: "{{ item.state | default(hcloud_state) }}"
+  loop: "{{ hcloud_ssh_keys }}"
+  loop_control:
+    label: "{{ item.name }} ({{ item.state | default(hcloud_state) }})"
+  register: hcloud_ssh_key_results

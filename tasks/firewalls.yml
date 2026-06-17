@@ -1,9 +1,41 @@
 ---
 # =============================================================================
-# firewalls.yml — Phase 2: implement hetzner.hcloud.firewall loop
+# firewalls.yml — create/manage firewalls with rules and resource bindings
+#
+# Phase 1: hetzner.hcloud.firewall — defines the firewall and its rules
+# Phase 2: hetzner.hcloud.firewall_resource — binds the firewall to resources
+#           via label_selector when apply_to is defined on the firewall entry.
+#
+# Loop:   hcloud_firewalls
+# Gate:   called only when hcloud_firewalls | length > 0 and hcloud_provision
+#         (both enforced in main.yml)
+#
+# firewall_resource.label_selectors accepts a list of label selector strings;
+# we extract them from apply_to items that have a label_selector key.
 # =============================================================================
 
-- name: Firewalls task — not yet implemented (Phase 2)
-  ansible.builtin.debug:
-    msg: "firewalls.yml reached (Phase 2 will implement hetzner.hcloud.firewall)"
-  when: false
+- name: Manage firewalls
+  hetzner.hcloud.firewall:
+    name: "{{ item.name }}"
+    rules: "{{ item.rules | default(omit) }}"
+    labels: "{{ {hcloud_managed_label_key: hcloud_managed_label_value} | combine(item.labels | default({})) }}"
+    state: "{{ item.state | default(hcloud_state) }}"
+  loop: "{{ hcloud_firewalls }}"
+  loop_control:
+    label: "{{ item.name }} ({{ item.state | default(hcloud_state) }})"
+  register: hcloud_firewall_results
+
+- name: Apply firewalls to resources via label selectors
+  hetzner.hcloud.firewall_resource:
+    firewall: "{{ item.name }}"
+    label_selectors: >-
+      {{ item.apply_to
+         | selectattr('label_selector', 'defined')
+         | map(attribute='label_selector')
+         | list }}
+    state: "{{ item.state | default(hcloud_state) }}"
+  loop: "{{ hcloud_firewalls }}"
+  loop_control:
+    label: "{{ item.name }} label selectors"
+  when: >-
+    (item.apply_to | default([]) | selectattr('label_selector', 'defined') | list | length) > 0

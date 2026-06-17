@@ -1,9 +1,20 @@
 ---
 # =============================================================================
-# placement_groups.yml — Phase 2: implement hetzner.hcloud.placement_group loop
+# placement_groups.yml — create/manage placement groups
+#
+# Module: hetzner.hcloud.placement_group
+# Loop:   hcloud_placement_groups
+# Gate:   called only when hcloud_placement_groups | length > 0 and hcloud_provision
+#         (both enforced in main.yml)
 # =============================================================================
 
-- name: Placement groups task — not yet implemented (Phase 2)
-  ansible.builtin.debug:
-    msg: "placement_groups.yml reached (Phase 2 will implement hetzner.hcloud.placement_group)"
-  when: false
+- name: Manage placement groups
+  hetzner.hcloud.placement_group:
+    name: "{{ item.name }}"
+    type: "{{ item.type }}"
+    labels: "{{ {hcloud_managed_label_key: hcloud_managed_label_value} | combine(item.labels | default({})) }}"
+    state: "{{ item.state | default(hcloud_state) }}"
+  loop: "{{ hcloud_placement_groups }}"
+  loop_control:
+    label: "{{ item.name }} ({{ item.state | default(hcloud_state) }})"
+  register: hcloud_placement_group_results
