@@ -1,0 +1,59 @@
+---
+# =============================================================================
+# load_balancer_item.yml — per-LB sub-task included by load_balancers.yml
+#
+# Loop var: hcloud_lb_item (set by the calling include_tasks loop)
+#
+# Steps:
+#   1. Ensure the load balancer resource exists (or is absent).
+#   2. Optionally attach to a private network (when hcloud_lb_item.network set).
+#   3. Configure each service (protocol / port mapping).
+#   4. Register each target (server, label_selector, or ip).
+# =============================================================================
+
+- name: Manage load balancer resource — {{ hcloud_lb_item.name }}
+  hetzner.hcloud.load_balancer:
+    name: "{{ hcloud_lb_item.name }}"
+    load_balancer_type: "{{ hcloud_lb_item.load_balancer_type | default(omit) }}"
+    location: "{{ hcloud_lb_item.location | default(omit) }}"
+    network_zone: "{{ hcloud_lb_item.network_zone | default(omit) }}"
+    algorithm: "{{ hcloud_lb_item.algorithm | default(omit) }}"
+    delete_protection: "{{ hcloud_lb_item.delete_protection | default(omit) }}"
+    labels: "{{ {hcloud_managed_label_key: hcloud_managed_label_value} | combine(hcloud_lb_item.labels | default({})) }}"
+    state: "{{ hcloud_lb_item.state | default(hcloud_state) }}"
+
+- name: Attach load balancer to private network — {{ hcloud_lb_item.name }}
+  hetzner.hcloud.load_balancer_network:
+    load_balancer: "{{ hcloud_lb_item.name }}"
+    network: "{{ hcloud_lb_item.network }}"
+    state: "{{ hcloud_lb_item.state | default(hcloud_state) }}"
+  when: hcloud_lb_item.network is defined and hcloud_lb_item.network | length > 0
+
+- name: Configure load balancer services — {{ hcloud_lb_item.name }}
+  hetzner.hcloud.load_balancer_service:
+    load_balancer: "{{ hcloud_lb_item.name }}"
+    protocol: "{{ svc_item.protocol }}"
+    listen_port: "{{ svc_item.listen_port }}"
+    destination_port: "{{ svc_item.destination_port | default(omit) }}"
+    proxyprotocol: "{{ svc_item.proxyprotocol | default(omit) }}"
+    state: "{{ svc_item.state | default(hcloud_lb_item.state | default(hcloud_state)) }}"
+  loop: "{{ hcloud_lb_item.services | default([]) }}"
+  loop_control:
+    loop_var: svc_item
+    label: "{{ hcloud_lb_item.name }}/{{ svc_item.protocol }}:{{ svc_item.listen_port }}"
+  when: hcloud_lb_item.services | default([]) | length > 0
+
+- name: Register load balancer targets — {{ hcloud_lb_item.name }}
+  hetzner.hcloud.load_balancer_target:
+    load_balancer: "{{ hcloud_lb_item.name }}"
+    type: "{{ tgt_item.type }}"
+    server: "{{ tgt_item.server | default(omit) }}"
+    label_selector: "{{ tgt_item.label_selector | default(omit) }}"
+    ip: "{{ tgt_item.ip | default(omit) }}"
+    use_private_ip: "{{ tgt_item.use_private_ip | default(omit) }}"
+    state: "{{ tgt_item.state | default(hcloud_lb_item.state | default(hcloud_state)) }}"
+  loop: "{{ hcloud_lb_item.targets | default([]) }}"
+  loop_control:
+    loop_var: tgt_item
+    label: "{{ hcloud_lb_item.name }}/{{ tgt_item.type }}"
+  when: hcloud_lb_item.targets | default([]) | length > 0

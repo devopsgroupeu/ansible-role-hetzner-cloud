@@ -3,7 +3,12 @@
 # converge.yml — render/validate only, NO Hetzner API calls
 #
 # hcloud_provision: false is the hard gate. The role runs validate.yml and
-# preflight.yml then stops. No HCLOUD_TOKEN is needed, expected, or set.
+# preflight.yml then stops before any hetzner.hcloud.* API call is made.
+# No HCLOUD_TOKEN is needed, expected, or set.
+#
+# hcloud_write_inventory: true exercises the template render path offline.
+# The inventory file will contain only empty group sections because
+# hcloud_provisioned_servers=[] (no real API calls, no server results).
 # =============================================================================
 
 - name: Converge (render/validate only — no Hetzner API)
@@ -13,6 +18,10 @@
   vars:
     # OFFLINE GATE — must remain false in this scenario
     hcloud_provision: false
+
+    # Exercise inventory rendering offline
+    hcloud_write_inventory: true
+    hcloud_inventory_path: /tmp/hcloud_inventory.ini
 
     # Representative resource vars to exercise validate.yml + argument_specs
     hcloud_ssh_keys:
@@ -83,6 +92,22 @@
         size: 20
         location: nbg1
         automount: false
+
+    hcloud_load_balancers:
+      - name: api-lb
+        load_balancer_type: lb11
+        location: nbg1
+        network: openprime-net
+        labels:
+          cluster: openprime
+        services:
+          - protocol: tcp
+            listen_port: 6443
+            destination_port: 6443
+        targets:
+          - type: label_selector
+            label_selector: "role=control-plane"
+            use_private_ip: true
 
   tasks:
     - name: Include hetzner-cloud role

@@ -2,10 +2,27 @@
 # =============================================================================
 # outputs.yml — expose role facts and optionally write a static inventory
 #
-# Phase 1: stub — sets empty hcloud_provisioned_servers fact.
-# Phase 4: populated from hcloud_server_results registered in servers.yml.
+# Safe offline: hcloud_server_results is only registered when hcloud_provision
+# is true AND hcloud_servers is non-empty. When the offline molecule scenario
+# runs (hcloud_provision: false) the variable is never set, so we guard with
+# default({'results': []}) to avoid undefined-variable errors.
+#
+# hcloud_provisioned_servers — list of {name, ipv4_address, private_networks,
+#   labels} dicts derived from the server module return value. Downstream plays
+#   can iterate this directly or use add_host to build an in-memory inventory.
 # =============================================================================
 
 - name: Expose provisioned servers as a role fact
   ansible.builtin.set_fact:
-    hcloud_provisioned_servers: []
+    hcloud_provisioned_servers: >-
+      {{ (hcloud_server_results | default({'results': []})).results
+         | selectattr('hcloud_server', 'defined')
+         | map(attribute='hcloud_server')
+         | list }}
+
+- name: Write static inventory for downstream roles
+  ansible.builtin.template:
+    src: hcloud_inventory.ini.j2
+    dest: "{{ hcloud_inventory_path }}"
+    mode: "0640"
+  when: hcloud_write_inventory | bool
