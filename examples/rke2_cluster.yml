@@ -1,0 +1,184 @@
+---
+# =============================================================================
+# examples/rke2_cluster.yml — full HA RKE2 topology
+#
+# Provisions: 3 control-plane + 2 worker nodes + private network + firewall
+# + placement group + floating IP (for haproxy-keepalived VIP).
+#
+# Requires: HCLOUD_TOKEN set, hetzner.hcloud collection installed.
+# =============================================================================
+
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+
+  vars:
+    # Source from HashiCorp Vault or Ansible Vault — never hardcode
+    # hcloud_api_token: "{{ lookup('community.hashi_vault.vault_kv2_get', 'hetzner/token').secret.value }}"
+
+    hcloud_provision: true
+    hcloud_allow_teardown: false
+
+    hcloud_ssh_keys:
+      - name: ops-key
+        public_key: "{{ lookup('ansible.builtin.file', '~/.ssh/ops.pub') }}"
+        labels:
+          team: platform
+
+    hcloud_networks:
+      - name: prod-net
+        ip_range: "10.0.0.0/16"
+
+    hcloud_subnetworks:
+      - network: prod-net
+        type: cloud
+        network_zone: eu-central
+        ip_range: "10.0.1.0/24"
+
+    hcloud_firewalls:
+      - name: k8s-cp-fw
+        rules:
+          - direction: in
+            protocol: tcp
+            port: "6443"
+            source_ips:
+              - "0.0.0.0/0"
+              - "::/0"
+            description: kube-apiserver
+          - direction: in
+            protocol: tcp
+            port: "9345"
+            source_ips:
+              - "10.0.0.0/16"
+            description: rke2 join port (internal only)
+          - direction: in
+            protocol: icmp
+            source_ips:
+              - "0.0.0.0/0"
+              - "::/0"
+        apply_to:
+          - label_selector: "role=control-plane"
+      - name: k8s-worker-fw
+        rules:
+          - direction: in
+            protocol: tcp
+            port: "80"
+            source_ips:
+              - "0.0.0.0/0"
+              - "::/0"
+          - direction: in
+            protocol: tcp
+            port: "443"
+            source_ips:
+              - "0.0.0.0/0"
+              - "::/0"
+        apply_to:
+          - label_selector: "role=worker"
+
+    hcloud_placement_groups:
+      - name: cp-spread
+        type: spread
+        labels:
+          cluster: prod
+
+    hcloud_servers:
+      - name: cp-01
+        server_type: cx32
+        image: debian-12
+        location: fsn1
+        ssh_keys:
+          - ops-key
+        firewalls:
+          - k8s-cp-fw
+        placement_group: cp-spread
+        enable_ipv6: false
+        labels:
+          role: control-plane
+          cluster: prod
+      - name: cp-02
+        server_type: cx32
+        image: debian-12
+        location: fsn1
+        ssh_keys:
+          - ops-key
+        firewalls:
+          - k8s-cp-fw
+        placement_group: cp-spread
+        enable_ipv6: false
+        labels:
+          role: control-plane
+          cluster: prod
+      - name: cp-03
+        server_type: cx32
+        image: debian-12
+        location: fsn1
+        ssh_keys:
+          - ops-key
+        firewalls:
+          - k8s-cp-fw
+        placement_group: cp-spread
+        enable_ipv6: false
+        labels:
+          role: control-plane
+          cluster: prod
+      - name: wk-01
+        server_type: cx42
+        image: debian-12
+        location: fsn1
+        ssh_keys:
+          - ops-key
+        firewalls:
+          - k8s-worker-fw
+        enable_ipv6: false
+        labels:
+          role: worker
+          cluster: prod
+      - name: wk-02
+        server_type: cx42
+        image: debian-12
+        location: fsn1
+        ssh_keys:
+          - ops-key
+        firewalls:
+          - k8s-worker-fw
+        enable_ipv6: false
+        labels:
+          role: worker
+          cluster: prod
+
+    hcloud_server_networks:
+      - server: cp-01
+        network: prod-net
+        ip: "10.0.1.11"
+      - server: cp-02
+        network: prod-net
+        ip: "10.0.1.12"
+      - server: cp-03
+        network: prod-net
+        ip: "10.0.1.13"
+      - server: wk-01
+        network: prod-net
+        ip: "10.0.1.21"
+      - server: wk-02
+        network: prod-net
+        ip: "10.0.1.22"
+
+    hcloud_floating_ips:
+      - name: ingress-vip
+        type: ipv4
+        home_location: fsn1
+        labels:
+          role: vip
+          cluster: prod
+
+  roles:
+    - devopsgroupeu.hetzner_cloud
+
+# Second play: use hetzner.hcloud dynamic inventory to run rke2 and haproxy roles
+# - hosts: role_control_plane
+#   roles:
+#     - devopsgroupeu.rke2
+# - hosts: role_worker
+#   roles:
+#     - devopsgroupeu.rke2

@@ -1,0 +1,32 @@
+---
+# =============================================================================
+# preflight.yml — environment prerequisites check (no API calls)
+#
+# Verifies that the hetzner.hcloud collection is resolvable and confirms the
+# offline gate is active when hcloud_provision is false.
+# =============================================================================
+
+- name: Confirm offline gate is active (provision disabled)
+  ansible.builtin.debug:
+    msg: >-
+      hcloud_provision=false — all hetzner.hcloud.* API tasks will be skipped.
+      This is the expected behaviour for offline/validation-only runs.
+  when: not hcloud_provision | bool
+
+- name: Verify hetzner.hcloud collection is available
+  ansible.builtin.command:
+    cmd: ansible-galaxy collection list hetzner.hcloud
+  register: _hcloud_collection_check
+  changed_when: false
+  failed_when: _hcloud_collection_check.rc != 0
+  when: hcloud_provision | bool
+
+- name: Assert hetzner.hcloud collection was found
+  ansible.builtin.assert:
+    that:
+      - "'hetzner.hcloud' in _hcloud_collection_check.stdout"
+    fail_msg: >-
+      The hetzner.hcloud collection is not installed. Run:
+        ansible-galaxy collection install -r requirements.yml
+    success_msg: "hetzner.hcloud collection is available"
+  when: hcloud_provision | bool

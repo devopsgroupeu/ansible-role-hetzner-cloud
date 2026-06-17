@@ -1,0 +1,8 @@
+---
+# =============================================================================
+# handlers/main.yml
+#
+# This role manages cloud-side infrastructure (controller-side, localhost).
+# There are no service restart handlers. This file satisfies the Galaxy
+# standard role layout requirement.
+# =============================================================================

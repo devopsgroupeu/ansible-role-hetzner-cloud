@@ -1,0 +1,38 @@
+# Python
+venv/
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+
+# IDE / Editor specific files
+.idea/
+.vscode/
+*.swp
+*~
+.cache
+
+# macOS specific files
+.DS_Store
+
+# Ansible
+.ansible
+*.retry
+
+# Molecule
+.molecule/
+
+# Secrets — never commit tokens or Ansible Vault files
+*.vault
+vault.yml
+.env
+*.env
+**/.env
+
+# Hetzner Cloud integration credentials (gitignored like sibling roles)
+test-hetzner/
+**/cloud-config-hcloud.ini
+
+# Logs
+*.log

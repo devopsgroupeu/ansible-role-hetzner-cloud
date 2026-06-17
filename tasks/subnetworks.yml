@@ -1,0 +1,9 @@
+---
+# =============================================================================
+# subnetworks.yml — Phase 2: implement hetzner.hcloud.subnetwork loop
+# =============================================================================
+
+- name: Subnetworks task — not yet implemented (Phase 2)
+  ansible.builtin.debug:
+    msg: "subnetworks.yml reached (Phase 2 will implement hetzner.hcloud.subnetwork)"
+  when: false

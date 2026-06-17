@@ -1,0 +1,11 @@
+---
+# =============================================================================
+# outputs.yml — expose role facts and optionally write a static inventory
+#
+# Phase 1: stub — sets empty hcloud_provisioned_servers fact.
+# Phase 4: populated from hcloud_server_results registered in servers.yml.
+# =============================================================================
+
+- name: Expose provisioned servers as a role fact
+  ansible.builtin.set_fact:
+    hcloud_provisioned_servers: []

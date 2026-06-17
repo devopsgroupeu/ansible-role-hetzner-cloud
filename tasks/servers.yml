@@ -1,0 +1,9 @@
+---
+# =============================================================================
+# servers.yml — Phase 2: implement hetzner.hcloud.server loop
+# =============================================================================
+
+- name: Servers task — not yet implemented (Phase 2)
+  ansible.builtin.debug:
+    msg: "servers.yml reached (Phase 2 will implement hetzner.hcloud.server)"
+  when: false

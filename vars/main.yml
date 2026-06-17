@@ -1,0 +1,22 @@
+---
+# =============================================================================
+# ansible-role-hetzner-cloud — vars/main.yml
+#
+# Internal constants (high precedence). Rarely edited by consumers.
+# Tunables belong in defaults/main.yml.
+# =============================================================================
+
+# Dependency order for resource provisioning — matches tasks/main.yml include order.
+# Used for documentation and tooling; not iterated at runtime.
+_hcloud_resource_order:
+  - ssh_keys
+  - networks
+  - subnetworks
+  - firewalls
+  - placement_groups
+  - servers
+  - server_networks
+  - primary_ips
+  - floating_ips
+  - volumes
+  - load_balancers

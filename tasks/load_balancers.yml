@@ -1,0 +1,9 @@
+---
+# =============================================================================
+# load_balancers.yml — Phase 3: implement hetzner.hcloud.load_balancer* loop
+# =============================================================================
+
+- name: Load balancers task — not yet implemented (Phase 3)
+  ansible.builtin.debug:
+    msg: "load_balancers.yml reached (Phase 3 will implement hetzner.hcloud.load_balancer)"
+  when: false

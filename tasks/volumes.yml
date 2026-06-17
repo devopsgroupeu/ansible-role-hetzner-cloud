@@ -1,0 +1,9 @@
+---
+# =============================================================================
+# volumes.yml — Phase 2: implement hetzner.hcloud.volume loop
+# =============================================================================
+
+- name: Volumes task — not yet implemented (Phase 2)
+  ansible.builtin.debug:
+    msg: "volumes.yml reached (Phase 2 will implement hetzner.hcloud.volume)"
+  when: false

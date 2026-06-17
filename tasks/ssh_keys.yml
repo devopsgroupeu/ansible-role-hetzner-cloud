@@ -1,0 +1,11 @@
+---
+# =============================================================================
+# ssh_keys.yml — Phase 2: implement hetzner.hcloud.ssh_key loop
+# =============================================================================
+# Stub placeholder — resource tasks are implemented in Phase 2+.
+# This file exists so tasks/main.yml include_tasks resolve without error.
+
+- name: SSH keys task — not yet implemented (Phase 2)
+  ansible.builtin.debug:
+    msg: "ssh_keys.yml reached (Phase 2 will implement hetzner.hcloud.ssh_key)"
+  when: false

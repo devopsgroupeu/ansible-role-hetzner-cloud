@@ -1,0 +1,118 @@
+---
+# =============================================================================
+# main.yml — role orchestrator
+#
+# Execution order:
+#   1. validate.yml  (tags: always — always runs, pure asserts, no API)
+#   2. preflight.yml (checks collection availability, no API)
+#   3. Per-resource includes (only when hcloud_provision and list non-empty)
+#      Wrapped in module_defaults to pass api_token once for all hcloud modules.
+#   4. outputs.yml   (emit facts / optionally write inventory file)
+#
+# Offline gate: hcloud_provision: false skips all hetzner.hcloud.* tasks.
+# =============================================================================
+
+- name: Validate configuration
+  ansible.builtin.import_tasks: validate.yml
+  tags: always
+
+- name: Run preflight checks
+  ansible.builtin.import_tasks: preflight.yml
+  tags:
+    - hcloud
+    - preflight
+
+# ── Resource provisioning block ───────────────────────────────────────────────
+# All hetzner.hcloud.* module calls live inside this block.
+# module_defaults passes the API token once, centrally (group/hetzner.hcloud.all),
+# so it is not repeated in every task file. no_log suppresses token from output.
+- name: Provision Hetzner Cloud resources
+  when: hcloud_provision | bool
+  no_log: "{{ hcloud_no_log | default(true) }}"
+  module_defaults:
+    group/hetzner.hcloud.all:
+      api_token: "{{ hcloud_api_token }}"
+  block:
+    - name: Manage SSH keys
+      ansible.builtin.include_tasks: ssh_keys.yml
+      when: hcloud_ssh_keys | length > 0
+      tags:
+        - hcloud
+        - ssh_keys
+
+    - name: Manage networks
+      ansible.builtin.include_tasks: networks.yml
+      when: hcloud_networks | length > 0
+      tags:
+        - hcloud
+        - networks
+
+    - name: Manage subnetworks
+      ansible.builtin.include_tasks: subnetworks.yml
+      when: hcloud_subnetworks | length > 0
+      tags:
+        - hcloud
+        - subnetworks
+
+    - name: Manage firewalls
+      ansible.builtin.include_tasks: firewalls.yml
+      when: hcloud_firewalls | length > 0
+      tags:
+        - hcloud
+        - firewalls
+
+    - name: Manage placement groups
+      ansible.builtin.include_tasks: placement_groups.yml
+      when: hcloud_placement_groups | length > 0
+      tags:
+        - hcloud
+        - placement_groups
+
+    - name: Manage servers
+      ansible.builtin.include_tasks: servers.yml
+      when: hcloud_servers | length > 0
+      tags:
+        - hcloud
+        - servers
+
+    - name: Attach servers to networks
+      ansible.builtin.include_tasks: server_networks.yml
+      when: hcloud_server_networks | length > 0
+      tags:
+        - hcloud
+        - server_networks
+        - servers
+
+    - name: Manage primary IPs
+      ansible.builtin.include_tasks: primary_ips.yml
+      when: hcloud_primary_ips | length > 0
+      tags:
+        - hcloud
+        - primary_ips
+
+    - name: Manage floating IPs
+      ansible.builtin.include_tasks: floating_ips.yml
+      when: hcloud_floating_ips | length > 0
+      tags:
+        - hcloud
+        - floating_ips
+
+    - name: Manage volumes
+      ansible.builtin.include_tasks: volumes.yml
+      when: hcloud_volumes | length > 0
+      tags:
+        - hcloud
+        - volumes
+
+    - name: Manage load balancers
+      ansible.builtin.include_tasks: load_balancers.yml
+      when: hcloud_load_balancers | length > 0
+      tags:
+        - hcloud
+        - load_balancers
+
+- name: Emit outputs
+  ansible.builtin.import_tasks: outputs.yml
+  tags:
+    - hcloud
+    - outputs

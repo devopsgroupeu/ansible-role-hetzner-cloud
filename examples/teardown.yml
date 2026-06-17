@@ -1,0 +1,102 @@
+---
+# =============================================================================
+# examples/teardown.yml — safe teardown walkthrough
+#
+# Always scope with --tags to avoid accidentally destroying everything at once.
+# hcloud_allow_teardown: true is REQUIRED for any state: absent run.
+#
+# Usage:
+#   # Dry-run (syntax check only — does NOT call API, no --check):
+#   ansible-playbook examples/teardown.yml --syntax-check
+#
+#   # Destroy servers only:
+#   ansible-playbook examples/teardown.yml \
+#     -e hcloud_allow_teardown=true \
+#     --tags servers,server_networks
+#
+#   # Full teardown (reverse dependency order):
+#   ansible-playbook examples/teardown.yml \
+#     -e hcloud_allow_teardown=true
+# =============================================================================
+
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+
+  vars:
+    hcloud_provision: true
+    hcloud_state: absent
+
+    # REQUIRED for any state: absent run — pass on CLI, never hardcode true here
+    hcloud_allow_teardown: false
+
+    # Mirror your provisioning play for the resources you want to remove.
+    # Teardown order in tasks/main.yml is the same as creation; for a clean
+    # teardown run resources in reverse (servers before networks etc.) or use
+    # per-item state: absent with targeted --tags.
+
+    hcloud_server_networks:
+      - server: cp-01
+        network: prod-net
+        state: absent
+      - server: cp-02
+        network: prod-net
+        state: absent
+      - server: cp-03
+        network: prod-net
+        state: absent
+
+    hcloud_servers:
+      - name: cp-01
+        server_type: cx32
+        state: absent
+      - name: cp-02
+        server_type: cx32
+        state: absent
+      - name: cp-03
+        server_type: cx32
+        state: absent
+      - name: wk-01
+        server_type: cx42
+        state: absent
+      - name: wk-02
+        server_type: cx42
+        state: absent
+
+    hcloud_floating_ips:
+      - name: ingress-vip
+        type: ipv4
+        home_location: fsn1
+        state: absent
+
+    hcloud_subnetworks:
+      - network: prod-net
+        type: cloud
+        network_zone: eu-central
+        ip_range: "10.0.1.0/24"
+        state: absent
+
+    hcloud_networks:
+      - name: prod-net
+        ip_range: "10.0.0.0/16"
+        state: absent
+
+    hcloud_firewalls:
+      - name: k8s-cp-fw
+        state: absent
+      - name: k8s-worker-fw
+        state: absent
+
+    hcloud_placement_groups:
+      - name: cp-spread
+        type: spread
+        state: absent
+
+    hcloud_ssh_keys:
+      - name: ops-key
+        public_key: ""
+        state: absent
+
+  roles:
+    - devopsgroupeu.hetzner_cloud

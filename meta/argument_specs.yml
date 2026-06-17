@@ -1,0 +1,628 @@
+---
+# =============================================================================
+# meta/argument_specs.yml — role argument specification
+#
+# 1:1 with defaults/main.yml. Every defaults key has an entry here.
+# ansible-core validates passed vars against this spec before any task runs,
+# so the offline molecule scenario (hcloud_provision=false) exercises schema
+# validation against real input without any API calls.
+# =============================================================================
+argument_specs:
+  main:
+    short_description: Provision Hetzner Cloud infrastructure via hetzner.hcloud.
+    description: >
+      Controller-side / localhost role that provisions Hetzner Cloud resources
+      (SSH keys, networks, subnetworks, firewalls, placement groups, servers,
+      server-network attachments, primary IPs, floating IPs, volumes, and load
+      balancers) using the hetzner.hcloud collection. Runs with connection: local,
+      gather_facts: false, become: false. Default posture is inert (all resource
+      lists default to []).
+    author:
+      - DevOpsGroup
+
+    options:
+
+      # ── Auth ──────────────────────────────────────────────────────────────
+      hcloud_api_token:
+        type: str
+        required: false
+        default: ""
+        description: >
+          Hetzner Cloud API token. Resolved from the HCLOUD_TOKEN environment
+          variable when not explicitly set. Source from HashiCorp Vault or
+          Ansible Vault at consume time. Never hardcode in the repository.
+
+      # ── Global behaviour ──────────────────────────────────────────────────
+      hcloud_provision:
+        type: bool
+        required: false
+        default: true
+        description: >
+          Master kill-switch. When false, all hetzner.hcloud.* API tasks are
+          skipped. Set false for offline/validation-only runs (e.g. molecule).
+
+      hcloud_state:
+        type: str
+        required: false
+        default: present
+        choices:
+          - present
+          - absent
+        description: >
+          Global default state applied to all resources that do not override it
+          with a per-item state key.
+
+      hcloud_allow_teardown:
+        type: bool
+        required: false
+        default: false
+        description: >
+          Hard guard against accidental destruction. Any resource targeting
+          state=absent aborts unless this is explicitly set to true.
+
+      hcloud_no_log:
+        type: bool
+        required: false
+        default: true
+        description: >
+          Suppress task output that may contain the API token or cloud-init
+          join tokens. Set false temporarily for debugging only.
+
+      hcloud_default_location:
+        type: str
+        required: false
+        default: fsn1
+        description: >
+          Fallback Hetzner Cloud location slug for servers and primary IPs
+          when not specified per-resource (e.g. fsn1, nbg1, hel1, ash, hil).
+
+      hcloud_default_image:
+        type: str
+        required: false
+        default: debian-12
+        description: >
+          Fallback OS image for servers when not specified per-resource.
+
+      hcloud_managed_label_key:
+        type: str
+        required: false
+        default: managed-by
+        description: >
+          Label key stamped on every created resource to identify what this
+          role owns and to enable label-selector grouping in dynamic inventory.
+
+      hcloud_managed_label_value:
+        type: str
+        required: false
+        default: ansible-hetzner-cloud
+        description: >
+          Label value paired with hcloud_managed_label_key on all created
+          resources.
+
+      hcloud_write_inventory:
+        type: bool
+        required: false
+        default: false
+        description: >
+          When true, renders templates/hcloud_inventory.ini.j2 to
+          hcloud_inventory_path as a static INI inventory for downstream roles.
+          Useful for air-gapped / CI pipelines without dynamic inventory.
+
+      hcloud_inventory_path:
+        type: str
+        required: false
+        default: ""
+        description: >
+          Destination file path for the rendered static inventory. Required
+          (non-empty) when hcloud_write_inventory is true.
+
+      # ── SSH keys ──────────────────────────────────────────────────────────
+      hcloud_ssh_keys:
+        type: list
+        elements: dict
+        required: false
+        default: []
+        description: >
+          List of SSH public key dicts to upload to Hetzner Cloud. Each entry
+          becomes one hetzner.hcloud.ssh_key task.
+        options:
+          name:
+            type: str
+            required: true
+            description: SSH key name (unique identifier in Hetzner Cloud).
+          public_key:
+            type: str
+            required: false
+            description: >
+              SSH public key string. Required when state=present.
+              Use lookup('ansible.builtin.file', '~/.ssh/key.pub') at consume time.
+          labels:
+            type: dict
+            required: false
+            default: {}
+            description: Arbitrary key/value labels to stamp on this resource.
+          state:
+            type: str
+            required: false
+            choices:
+              - present
+              - absent
+            description: >
+              Per-resource state override. Defaults to hcloud_state.
+
+      # ── Networks ──────────────────────────────────────────────────────────
+      hcloud_networks:
+        type: list
+        elements: dict
+        required: false
+        default: []
+        description: >
+          Private RFC1918 networks for node-to-node traffic and RKE2 CNI.
+        options:
+          name:
+            type: str
+            required: true
+            description: Network name.
+          ip_range:
+            type: str
+            required: false
+            description: >
+              CIDR block for the network (e.g. "10.0.0.0/16"). Required when
+              state=present.
+          labels:
+            type: dict
+            required: false
+            default: {}
+            description: Arbitrary key/value labels.
+          state:
+            type: str
+            required: false
+            choices:
+              - present
+              - absent
+            description: Per-resource state override. Defaults to hcloud_state.
+
+      # ── Subnetworks ───────────────────────────────────────────────────────
+      hcloud_subnetworks:
+        type: list
+        elements: dict
+        required: false
+        default: []
+        description: >
+          Subnets within private networks. Parent network must already exist.
+        options:
+          network:
+            type: str
+            required: true
+            description: Parent network name.
+          type:
+            type: str
+            required: true
+            choices:
+              - cloud
+              - server
+              - vswitch
+            description: Subnet type.
+          network_zone:
+            type: str
+            required: true
+            description: Network zone (e.g. eu-central).
+          ip_range:
+            type: str
+            required: true
+            description: CIDR block for this subnet (e.g. "10.0.1.0/24").
+          vswitch_id:
+            type: int
+            required: false
+            description: vSwitch ID (required when type=vswitch).
+          state:
+            type: str
+            required: false
+            choices:
+              - present
+              - absent
+            description: Per-resource state override. Defaults to hcloud_state.
+
+      # ── Firewalls ─────────────────────────────────────────────────────────
+      hcloud_firewalls:
+        type: list
+        elements: dict
+        required: false
+        default: []
+        description: >
+          Firewall resources with embedded rules and optional label-selector
+          bindings. Rules are managed declaratively.
+        options:
+          name:
+            type: str
+            required: true
+            description: Firewall name.
+          rules:
+            type: list
+            elements: dict
+            required: false
+            default: []
+            description: List of firewall rule dicts.
+          apply_to:
+            type: list
+            elements: dict
+            required: false
+            default: []
+            description: >
+              List of resource selectors to auto-attach this firewall to
+              (e.g. [{label_selector: "role=control-plane"}]).
+          labels:
+            type: dict
+            required: false
+            default: {}
+            description: Arbitrary key/value labels.
+          state:
+            type: str
+            required: false
+            choices:
+              - present
+              - absent
+            description: Per-resource state override. Defaults to hcloud_state.
+
+      # ── Placement groups ──────────────────────────────────────────────────
+      hcloud_placement_groups:
+        type: list
+        elements: dict
+        required: false
+        default: []
+        description: >
+          Anti-affinity placement groups for HA control-plane nodes.
+        options:
+          name:
+            type: str
+            required: true
+            description: Placement group name.
+          type:
+            type: str
+            required: true
+            choices:
+              - spread
+            description: Placement strategy. Only 'spread' is available.
+          labels:
+            type: dict
+            required: false
+            default: {}
+            description: Arbitrary key/value labels.
+          state:
+            type: str
+            required: false
+            choices:
+              - present
+              - absent
+            description: Per-resource state override. Defaults to hcloud_state.
+
+      # ── Servers ───────────────────────────────────────────────────────────
+      hcloud_servers:
+        type: list
+        elements: dict
+        required: false
+        default: []
+        description: >
+          Compute instances. Resource lists for SSH keys, firewalls, etc. must
+          be populated before servers to satisfy dependency order.
+        options:
+          name:
+            type: str
+            required: true
+            description: Server name (unique in the project).
+          server_type:
+            type: str
+            required: false
+            description: >
+              Hetzner Cloud server type slug (e.g. cx22, cx32, cx42).
+              Required when state=present.
+          image:
+            type: str
+            required: false
+            description: >
+              OS image slug. Defaults to hcloud_default_image.
+          location:
+            type: str
+            required: false
+            description: >
+              Location slug (e.g. fsn1, nbg1). Defaults to hcloud_default_location.
+              Use location, not the deprecated datacenter param.
+          ssh_keys:
+            type: list
+            elements: str
+            required: false
+            default: []
+            description: List of SSH key names to associate at creation time.
+          firewalls:
+            type: list
+            elements: str
+            required: false
+            default: []
+            description: List of firewall names to apply.
+          placement_group:
+            type: str
+            required: false
+            description: Placement group name for anti-affinity scheduling.
+          volumes:
+            type: list
+            elements: str
+            required: false
+            default: []
+            description: Volume names/IDs to attach at creation time.
+          user_data:
+            type: str
+            required: false
+            description: >
+              Cloud-init user-data string. May contain join tokens — handled
+              with no_log: true by the task.
+          enable_ipv4:
+            type: bool
+            required: false
+            default: true
+            description: Whether to assign a public IPv4 address.
+          enable_ipv6:
+            type: bool
+            required: false
+            default: false
+            description: Whether to assign a public IPv6 address.
+          backups:
+            type: bool
+            required: false
+            default: false
+            description: Whether to enable automatic backups.
+          labels:
+            type: dict
+            required: false
+            default: {}
+            description: >
+              Arbitrary labels. The managed-by label is always merged on top.
+              Use role/cluster labels for dynamic inventory grouping.
+          state:
+            type: str
+            required: false
+            choices:
+              - present
+              - absent
+            description: Per-resource state override. Defaults to hcloud_state.
+
+      # ── Server-network attachments ─────────────────────────────────────────
+      hcloud_server_networks:
+        type: list
+        elements: dict
+        required: false
+        default: []
+        description: >
+          Attach servers to private networks with optional fixed private IPs.
+          Both the server and network must already exist.
+        options:
+          server:
+            type: str
+            required: true
+            description: Server name to attach.
+          network:
+            type: str
+            required: true
+            description: Network name to attach to.
+          ip:
+            type: str
+            required: false
+            description: Fixed private IP address within the subnet.
+          alias_ips:
+            type: list
+            elements: str
+            required: false
+            default: []
+            description: Additional private IPs aliased to this attachment.
+          state:
+            type: str
+            required: false
+            choices:
+              - present
+              - absent
+            description: Per-resource state override. Defaults to hcloud_state.
+
+      # ── Primary IPs ───────────────────────────────────────────────────────
+      hcloud_primary_ips:
+        type: list
+        elements: dict
+        required: false
+        default: []
+        description: >
+          Pre-created stable public IPs that survive server rebuild/deletion.
+        options:
+          name:
+            type: str
+            required: true
+            description: Primary IP name.
+          type:
+            type: str
+            required: true
+            choices:
+              - ipv4
+              - ipv6
+            description: IP version.
+          datacenter:
+            type: str
+            required: false
+            description: >
+              Datacenter slug for placement (e.g. fsn1-dc14). Required when
+              state=present and no assignee.
+          assignee_id:
+            type: int
+            required: false
+            description: Server ID to pre-assign this primary IP to.
+          auto_delete:
+            type: bool
+            required: false
+            default: false
+            description: >
+              When true, delete this primary IP when it is unassigned from its
+              server.
+          labels:
+            type: dict
+            required: false
+            default: {}
+            description: Arbitrary key/value labels.
+          state:
+            type: str
+            required: false
+            choices:
+              - present
+              - absent
+            description: Per-resource state override. Defaults to hcloud_state.
+
+      # ── Floating IPs ──────────────────────────────────────────────────────
+      hcloud_floating_ips:
+        type: list
+        elements: dict
+        required: false
+        default: []
+        description: >
+          Location-scoped floating IPs (e.g. the HA VIP managed by
+          haproxy-keepalived). Can be re-assigned between servers.
+        options:
+          name:
+            type: str
+            required: true
+            description: Floating IP name.
+          type:
+            type: str
+            required: true
+            choices:
+              - ipv4
+              - ipv6
+            description: IP version.
+          home_location:
+            type: str
+            required: false
+            description: >
+              Location slug to anchor this IP to (e.g. fsn1). Required when
+              state=present unless 'server' is set.
+          server:
+            type: str
+            required: false
+            description: Server name to assign the floating IP to initially.
+          labels:
+            type: dict
+            required: false
+            default: {}
+            description: Arbitrary key/value labels.
+          state:
+            type: str
+            required: false
+            choices:
+              - present
+              - absent
+            description: Per-resource state override. Defaults to hcloud_state.
+
+      # ── Volumes ───────────────────────────────────────────────────────────
+      hcloud_volumes:
+        type: list
+        elements: dict
+        required: false
+        default: []
+        description: >
+          Persistent block storage volumes (e.g. for Vault data or Longhorn).
+        options:
+          name:
+            type: str
+            required: true
+            description: Volume name.
+          size:
+            type: int
+            required: false
+            description: Volume size in gigabytes. Required when state=present.
+          location:
+            type: str
+            required: false
+            description: >
+              Location slug for the volume. Required when state=present and
+              no server attachment is specified.
+          server:
+            type: str
+            required: false
+            description: Server name to attach this volume to.
+          format:
+            type: str
+            required: false
+            choices:
+              - ext4
+              - xfs
+            description: Filesystem to format at creation time (applied once only).
+          automount:
+            type: bool
+            required: false
+            default: false
+            description: Whether to automatically mount the volume on the server.
+          labels:
+            type: dict
+            required: false
+            default: {}
+            description: Arbitrary key/value labels.
+          state:
+            type: str
+            required: false
+            choices:
+              - present
+              - absent
+            description: Per-resource state override. Defaults to hcloud_state.
+
+      # ── Load balancers ────────────────────────────────────────────────────
+      hcloud_load_balancers:
+        type: list
+        elements: dict
+        required: false
+        default: []
+        description: >
+          Managed load balancers (alternative to self-hosted HAProxy).
+          Off by default; not needed when using haproxy-keepalived role.
+        options:
+          name:
+            type: str
+            required: true
+            description: Load balancer name.
+          load_balancer_type:
+            type: str
+            required: false
+            description: >
+              Load balancer type slug (e.g. lb11). Required when state=present.
+          location:
+            type: str
+            required: false
+            description: >
+              Location slug. Required when state=present unless network_zone
+              is provided.
+          network:
+            type: str
+            required: false
+            description: >
+              Private network name to attach the load balancer to for private
+              IP routing.
+          labels:
+            type: dict
+            required: false
+            default: {}
+            description: Arbitrary key/value labels.
+          services:
+            type: list
+            elements: dict
+            required: false
+            default: []
+            description: >
+              List of service dicts (protocol, listen_port, destination_port).
+              Each becomes a hetzner.hcloud.load_balancer_service task.
+          targets:
+            type: list
+            elements: dict
+            required: false
+            default: []
+            description: >
+              List of target dicts (type, label_selector/server, use_private_ip).
+              Each becomes a hetzner.hcloud.load_balancer_target task.
+          state:
+            type: str
+            required: false
+            choices:
+              - present
+              - absent
+            description: Per-resource state override. Defaults to hcloud_state.

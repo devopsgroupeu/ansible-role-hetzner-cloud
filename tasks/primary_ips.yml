@@ -1,0 +1,9 @@
+---
+# =============================================================================
+# primary_ips.yml — Phase 2: implement hetzner.hcloud.primary_ip loop
+# =============================================================================
+
+- name: Primary IPs task — not yet implemented (Phase 2)
+  ansible.builtin.debug:
+    msg: "primary_ips.yml reached (Phase 2 will implement hetzner.hcloud.primary_ip)"
+  when: false

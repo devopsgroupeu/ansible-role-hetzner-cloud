@@ -1,0 +1,9 @@
+---
+# =============================================================================
+# placement_groups.yml — Phase 2: implement hetzner.hcloud.placement_group loop
+# =============================================================================
+
+- name: Placement groups task — not yet implemented (Phase 2)
+  ansible.builtin.debug:
+    msg: "placement_groups.yml reached (Phase 2 will implement hetzner.hcloud.placement_group)"
+  when: false

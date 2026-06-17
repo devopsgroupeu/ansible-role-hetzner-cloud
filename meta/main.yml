@@ -1,0 +1,49 @@
+---
+galaxy_info:
+  author: DevOpsGroup
+  company: DevOpsGroup s.r.o
+  description: >
+    Provision and bootstrap Hetzner Cloud infrastructure (SSH keys, networks,
+    subnetworks, firewalls, placement groups, servers, server-network attachments,
+    primary IPs, floating IPs, volumes, load balancers) via the hetzner.hcloud
+    collection. Controller-side / localhost role that runs with connection: local
+    and become: false. Intended to stand up hosts that other roles (rke2,
+    haproxy-keepalived) then configure. Default posture: does nothing until
+    resource lists are populated.
+
+  license: Apache-2.0
+  min_ansible_version: "2.19"
+
+  role_name: hetzner_cloud
+  namespace: devopsgroupeu
+
+  galaxy_tags:
+    - hetzner
+    - hcloud
+    - cloud
+    - provisioning
+    - infrastructure
+    - networking
+    - kubernetes
+    - rke2
+    - iac
+    - bootstrap
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+    - name: EL
+      versions:
+        - "9"
+
+dependencies: []
+
+# Advisory: consumers must install this collection via requirements.yml.
+# The load-bearing declaration is requirements.yml, not here.
+collections:
+  - hetzner.hcloud

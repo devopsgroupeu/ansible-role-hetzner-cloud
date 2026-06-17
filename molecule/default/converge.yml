@@ -1,0 +1,78 @@
+---
+# =============================================================================
+# converge.yml — render/validate only, NO Hetzner API calls
+#
+# hcloud_provision: false is the hard gate. The role runs validate.yml and
+# preflight.yml then stops. No HCLOUD_TOKEN is needed, expected, or set.
+# =============================================================================
+
+- name: Converge (render/validate only — no Hetzner API)
+  hosts: all
+  gather_facts: true
+
+  vars:
+    # OFFLINE GATE — must remain false in this scenario
+    hcloud_provision: false
+
+    # Representative resource vars to exercise validate.yml + argument_specs
+    hcloud_ssh_keys:
+      - name: openprime
+        public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKeyForCIValidationOnly test@ci"
+
+    hcloud_networks:
+      - name: openprime-net
+        ip_range: "10.0.0.0/16"
+
+    hcloud_subnetworks:
+      - network: openprime-net
+        type: cloud
+        network_zone: eu-central
+        ip_range: "10.0.1.0/24"
+
+    hcloud_firewalls:
+      - name: k8s-cp-fw
+        rules:
+          - direction: in
+            protocol: tcp
+            port: "6443"
+            source_ips:
+              - "0.0.0.0/0"
+              - "::/0"
+            description: kube-apiserver
+        apply_to:
+          - label_selector: "role=control-plane"
+
+    hcloud_placement_groups:
+      - name: cp-spread
+        type: spread
+
+    hcloud_servers:
+      - name: openprime-cp-01
+        server_type: cx22
+        image: debian-12
+        location: nbg1
+        ssh_keys:
+          - openprime
+        firewalls:
+          - k8s-cp-fw
+        placement_group: cp-spread
+        labels:
+          role: control-plane
+          cluster: openprime
+
+    hcloud_server_networks:
+      - server: openprime-cp-01
+        network: openprime-net
+        ip: "10.0.1.11"
+
+    hcloud_floating_ips:
+      - name: ingress-vip
+        type: ipv4
+        home_location: nbg1
+        labels:
+          role: vip
+
+  tasks:
+    - name: Include hetzner-cloud role
+      ansible.builtin.include_role:
+        name: ansible-role-hetzner-cloud

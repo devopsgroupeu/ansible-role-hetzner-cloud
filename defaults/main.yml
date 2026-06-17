@@ -1,0 +1,198 @@
+---
+# =============================================================================
+# ansible-role-hetzner-cloud — defaults/main.yml
+#
+# All tunables namespaced hcloud_*. This file is the public variable contract;
+# every key here has a matching entry in meta/argument_specs.yml.
+#
+# Token resolution order (first non-empty wins). NEVER hardcode a token here:
+#   1) hcloud_api_token explicitly passed (e.g. from HashiCorp Vault lookup)
+#   2) HCLOUD_TOKEN environment variable
+# =============================================================================
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
+# API token for the Hetzner Cloud API. Resolve from Vault or env at consume
+# time. An empty value is refused by validate.yml when hcloud_provision is true.
+hcloud_api_token: "{{ lookup('ansible.builtin.env', 'HCLOUD_TOKEN') | default('', true) }}"
+
+# ── Global behaviour ─────────────────────────────────────────────────────────
+# Master kill-switch: set false to skip ALL hetzner.hcloud.* API tasks (used
+# by the offline molecule scenario and for dry-run config validation).
+hcloud_provision: true
+
+# Global default state for all resources. Per-dict state: overrides this.
+# Valid values: present | absent
+hcloud_state: present
+
+# HARD GUARD: any resource with state=absent aborts unless this is true.
+# Require explicit -e hcloud_allow_teardown=true for destructive runs.
+hcloud_allow_teardown: false
+
+# Whether to suppress task output that may include the API token or join tokens.
+# Set false temporarily for debugging; never leave false in CI/CD.
+hcloud_no_log: true
+
+# Fallback location for servers and primary IPs when not set per-resource.
+# Hetzner location slug (e.g. fsn1, nbg1, hel1, ash, hil).
+hcloud_default_location: fsn1
+
+# Fallback OS image for servers when not set per-resource.
+hcloud_default_image: debian-12
+
+# Label stamped on every created resource so the role can identify what it owns
+# and so the hetzner.hcloud dynamic inventory can group by this selector.
+hcloud_managed_label_key: managed-by
+hcloud_managed_label_value: ansible-hetzner-cloud
+
+# When true, write a static INI inventory to hcloud_inventory_path using
+# templates/hcloud_inventory.ini.j2 (useful for air-gapped / CI pipelines
+# that cannot use the hetzner.hcloud dynamic inventory plugin).
+hcloud_write_inventory: false
+
+# Destination path for the rendered inventory file.
+# Required (non-empty) when hcloud_write_inventory is true.
+hcloud_inventory_path: ""
+
+# ── SSH keys ──────────────────────────────────────────────────────────────────
+# List of SSH public key dicts to upload to Hetzner Cloud.
+# Required per-item: name, public_key (when state=present).
+# hcloud_ssh_keys:
+#   - name: ops-key
+#     public_key: "ssh-ed25519 AAAA..."
+#     labels: {team: platform}
+#     state: present
+hcloud_ssh_keys: []
+
+# ── Networks (private) ───────────────────────────────────────────────────────
+# Private RFC1918 networks for node-to-node traffic and RKE2 CNI.
+# Required per-item: name, ip_range (when state=present).
+# hcloud_networks:
+#   - name: prod-net
+#     ip_range: "10.0.0.0/16"
+#     labels: {}
+#     state: present
+hcloud_networks: []
+
+# ── Subnetworks ───────────────────────────────────────────────────────────────
+# Subnets within a private network. Parent network must already exist.
+# Required per-item: network, type, network_zone, ip_range.
+# hcloud_subnetworks:
+#   - network: prod-net
+#     type: cloud
+#     network_zone: eu-central
+#     ip_range: "10.0.1.0/24"
+#     state: present
+hcloud_subnetworks: []
+
+# ── Firewalls ─────────────────────────────────────────────────────────────────
+# Firewall resources with embedded rules and optional label-selector bindings.
+# Required per-item: name.
+# hcloud_firewalls:
+#   - name: k8s-cp-fw
+#     rules:
+#       - direction: in
+#         protocol: tcp
+#         port: "6443"
+#         source_ips: ["0.0.0.0/0", "::/0"]
+#         description: kube-apiserver
+#     apply_to:
+#       - label_selector: "role=control-plane"
+#     labels: {}
+#     state: present
+hcloud_firewalls: []
+
+# ── Placement groups ─────────────────────────────────────────────────────────
+# Anti-affinity groups for HA control-plane nodes.
+# Required per-item: name, type (only 'spread' is available today).
+# hcloud_placement_groups:
+#   - name: cp-spread
+#     type: spread
+#     labels: {}
+#     state: present
+hcloud_placement_groups: []
+
+# ── Servers ───────────────────────────────────────────────────────────────────
+# Compute instances. Required per-item: name, server_type (when state=present).
+# hcloud_servers:
+#   - name: cp-01
+#     server_type: cx32
+#     image: "{{ hcloud_default_image }}"
+#     location: "{{ hcloud_default_location }}"
+#     ssh_keys: [ops-key]
+#     firewalls: [k8s-cp-fw]
+#     placement_group: cp-spread
+#     volumes: []
+#     user_data: ""
+#     enable_ipv4: true
+#     enable_ipv6: false
+#     backups: false
+#     labels: {role: control-plane, cluster: prod}
+#     state: present
+hcloud_servers: []
+
+# ── Server ↔ private network attachments ─────────────────────────────────────
+# Attach servers to private networks with optional fixed private IPs.
+# Required per-item: server, network. Both must already exist.
+# hcloud_server_networks:
+#   - server: cp-01
+#     network: prod-net
+#     ip: "10.0.1.11"
+#     alias_ips: []
+#     state: present
+hcloud_server_networks: []
+
+# ── Primary IPs ───────────────────────────────────────────────────────────────
+# Pre-created stable public IPs that survive server rebuild/deletion.
+# Required per-item: name, type (ipv4|ipv6), datacenter (when state=present).
+# hcloud_primary_ips:
+#   - name: cp-01-ipv4
+#     type: ipv4
+#     datacenter: fsn1-dc14
+#     assignee_id: ""
+#     auto_delete: false
+#     state: present
+hcloud_primary_ips: []
+
+# ── Floating IPs ──────────────────────────────────────────────────────────────
+# Location-scoped floating IPs (e.g. the HA VIP flipped by haproxy-keepalived).
+# Required per-item: name, type (ipv4|ipv6), home_location (unless server set).
+# hcloud_floating_ips:
+#   - name: ingress-vip
+#     type: ipv4
+#     home_location: fsn1
+#     server: ""
+#     labels: {}
+#     state: present
+hcloud_floating_ips: []
+
+# ── Volumes ───────────────────────────────────────────────────────────────────
+# Persistent block storage. Required per-item: name, size (GB), location or server.
+# hcloud_volumes:
+#   - name: vault-data
+#     size: 20
+#     location: fsn1
+#     server: ""
+#     format: ext4
+#     automount: false
+#     state: present
+hcloud_volumes: []
+
+# ── Load balancers ────────────────────────────────────────────────────────────
+# Managed load balancers (alternative to self-hosted HAProxy). Off by default.
+# Required per-item: name, load_balancer_type, location (or network_zone).
+# hcloud_load_balancers:
+#   - name: api-lb
+#     load_balancer_type: lb11
+#     location: fsn1
+#     network: prod-net
+#     labels: {}
+#     services:
+#       - protocol: tcp
+#         listen_port: 6443
+#         destination_port: 6443
+#     targets:
+#       - type: label_selector
+#         label_selector: "role=control-plane"
+#         use_private_ip: true
+#     state: present
+hcloud_load_balancers: []

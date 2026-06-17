@@ -1,0 +1,237 @@
+---
+# =============================================================================
+# validate.yml — configuration assertions (always runs; no API calls)
+#
+# Tags: always (imported with tags: always from main.yml)
+#
+# Guards enforced here:
+#   1. API token present — only checked when hcloud_provision is true
+#   2. hcloud_state value is valid
+#   3. Teardown guard — abort if any resource targets absent without explicit flag
+#   4. Required fields per resource list
+#   5. Inventory output prerequisites
+# =============================================================================
+
+- name: Assert API token is present
+  ansible.builtin.assert:
+    that:
+      - hcloud_api_token | length > 0
+    fail_msg: >-
+      hcloud_api_token is empty. Export HCLOUD_TOKEN or inject from Vault.
+      Never hardcode the token in the repository.
+    success_msg: "API token present"
+  no_log: true
+  when: hcloud_provision | bool
+
+- name: Assert global state is valid
+  ansible.builtin.assert:
+    that:
+      - hcloud_state in ['present', 'absent']
+    fail_msg: >-
+      hcloud_state must be 'present' or 'absent'. Got: '{{ hcloud_state }}'
+    success_msg: "hcloud_state is valid"
+
+- name: Refuse teardown unless explicitly allowed
+  ansible.builtin.assert:
+    that:
+      - hcloud_allow_teardown | bool
+    fail_msg: >-
+      A resource is set to state=absent but hcloud_allow_teardown is false.
+      Destroying cloud resources requires -e hcloud_allow_teardown=true
+      (and ideally --tags to scope the destruction).
+    success_msg: "Teardown explicitly allowed"
+  when: >-
+    hcloud_state == 'absent' or
+    (hcloud_servers | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
+    (hcloud_networks | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
+    (hcloud_firewalls | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
+    (hcloud_volumes | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
+    (hcloud_load_balancers | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0)
+
+- name: Validate required fields — SSH keys
+  ansible.builtin.assert:
+    that:
+      - item.name is defined and item.name | length > 0
+      - (item.state | default(hcloud_state)) == 'absent' or (item.public_key is defined and item.public_key | length > 0)
+    fail_msg: >-
+      SSH key entry invalid: 'name' is required; 'public_key' is required
+      when state=present. Entry: {{ item | to_json }}
+    success_msg: "SSH key '{{ item.name }}' validated"
+  loop: "{{ hcloud_ssh_keys }}"
+  loop_control:
+    label: "{{ item.name | default('UNNAMED') }}"
+  when: hcloud_ssh_keys | length > 0
+
+- name: Validate required fields — networks
+  ansible.builtin.assert:
+    that:
+      - item.name is defined and item.name | length > 0
+      - (item.state | default(hcloud_state)) == 'absent' or (item.ip_range is defined and item.ip_range | length > 0)
+    fail_msg: >-
+      Network entry invalid: 'name' and 'ip_range' are required when
+      state=present. Entry: {{ item | to_json }}
+    success_msg: "Network '{{ item.name }}' validated"
+  loop: "{{ hcloud_networks }}"
+  loop_control:
+    label: "{{ item.name | default('UNNAMED') }}"
+  when: hcloud_networks | length > 0
+
+- name: Validate required fields — subnetworks
+  ansible.builtin.assert:
+    that:
+      - item.network is defined and item.network | length > 0
+      - item.ip_range is defined and item.ip_range | length > 0
+      - item.type is defined and item.type | length > 0
+      - item.network_zone is defined and item.network_zone | length > 0
+    fail_msg: >-
+      Subnetwork entry invalid: 'network', 'ip_range', 'type', and
+      'network_zone' are all required. Entry: {{ item | to_json }}
+    success_msg: "Subnetwork in '{{ item.network }}' validated"
+  loop: "{{ hcloud_subnetworks }}"
+  loop_control:
+    label: "{{ item.network | default('UNNAMED') }}/{{ item.ip_range | default('?') }}"
+  when: hcloud_subnetworks | length > 0
+
+- name: Validate required fields — firewalls
+  ansible.builtin.assert:
+    that:
+      - item.name is defined and item.name | length > 0
+    fail_msg: >-
+      Firewall entry invalid: 'name' is required. Entry: {{ item | to_json }}
+    success_msg: "Firewall '{{ item.name }}' validated"
+  loop: "{{ hcloud_firewalls }}"
+  loop_control:
+    label: "{{ item.name | default('UNNAMED') }}"
+  when: hcloud_firewalls | length > 0
+
+- name: Validate required fields — placement groups
+  ansible.builtin.assert:
+    that:
+      - item.name is defined and item.name | length > 0
+      - item.type is defined and item.type | length > 0
+    fail_msg: >-
+      Placement group entry invalid: 'name' and 'type' are required.
+      Entry: {{ item | to_json }}
+    success_msg: "Placement group '{{ item.name }}' validated"
+  loop: "{{ hcloud_placement_groups }}"
+  loop_control:
+    label: "{{ item.name | default('UNNAMED') }}"
+  when: hcloud_placement_groups | length > 0
+
+- name: Validate required fields — servers
+  ansible.builtin.assert:
+    that:
+      - item.name is defined and item.name | length > 0
+      - (item.state | default(hcloud_state)) == 'absent' or item.server_type is defined
+    fail_msg: >-
+      Server entry invalid: 'name' is required; 'server_type' is required when
+      state=present. Entry: {{ item | to_json }}
+    success_msg: "Server '{{ item.name }}' validated"
+  loop: "{{ hcloud_servers }}"
+  loop_control:
+    label: "{{ item.name | default('UNNAMED') }}"
+  when: hcloud_servers | length > 0
+
+- name: Validate required fields — server network attachments
+  ansible.builtin.assert:
+    that:
+      - item.server is defined and item.server | length > 0
+      - item.network is defined and item.network | length > 0
+    fail_msg: >-
+      Server-network attachment invalid: 'server' and 'network' are required.
+      Entry: {{ item | to_json }}
+    success_msg: "Server-network '{{ item.server }}/{{ item.network }}' validated"
+  loop: "{{ hcloud_server_networks }}"
+  loop_control:
+    label: "{{ item.server | default('UNNAMED') }}/{{ item.network | default('?') }}"
+  when: hcloud_server_networks | length > 0
+
+- name: Validate required fields — primary IPs
+  ansible.builtin.assert:
+    that:
+      - item.name is defined and item.name | length > 0
+      - item.type is defined and item.type in ['ipv4', 'ipv6']
+    fail_msg: >-
+      Primary IP entry invalid: 'name' and 'type' (ipv4|ipv6) are required.
+      Entry: {{ item | to_json }}
+    success_msg: "Primary IP '{{ item.name }}' validated"
+  loop: "{{ hcloud_primary_ips }}"
+  loop_control:
+    label: "{{ item.name | default('UNNAMED') }}"
+  when: hcloud_primary_ips | length > 0
+
+- name: Validate required fields — floating IPs
+  ansible.builtin.assert:
+    that:
+      - item.name is defined and item.name | length > 0
+      - item.type is defined and item.type in ['ipv4', 'ipv6']
+      - (item.state | default(hcloud_state)) == 'absent' or (item.home_location is defined and item.home_location | length > 0) or (item.server is defined and item.server | length > 0)
+    fail_msg: >-
+      Floating IP entry invalid: 'name', 'type' (ipv4|ipv6), and either
+      'home_location' or 'server' are required when state=present.
+      Entry: {{ item | to_json }}
+    success_msg: "Floating IP '{{ item.name }}' validated"
+  loop: "{{ hcloud_floating_ips }}"
+  loop_control:
+    label: "{{ item.name | default('UNNAMED') }}"
+  when: hcloud_floating_ips | length > 0
+
+- name: Validate required fields — volumes
+  ansible.builtin.assert:
+    that:
+      - item.name is defined and item.name | length > 0
+      - (item.state | default(hcloud_state)) == 'absent' or item.size is defined
+    fail_msg: >-
+      Volume entry invalid: 'name' is required; 'size' (GB) is required when
+      state=present. Entry: {{ item | to_json }}
+    success_msg: "Volume '{{ item.name }}' validated"
+  loop: "{{ hcloud_volumes }}"
+  loop_control:
+    label: "{{ item.name | default('UNNAMED') }}"
+  when: hcloud_volumes | length > 0
+
+- name: Validate required fields — load balancers
+  ansible.builtin.assert:
+    that:
+      - item.name is defined and item.name | length > 0
+      - (item.state | default(hcloud_state)) == 'absent' or item.load_balancer_type is defined
+    fail_msg: >-
+      Load balancer entry invalid: 'name' is required; 'load_balancer_type' is
+      required when state=present. Entry: {{ item | to_json }}
+    success_msg: "Load balancer '{{ item.name }}' validated"
+  loop: "{{ hcloud_load_balancers }}"
+  loop_control:
+    label: "{{ item.name | default('UNNAMED') }}"
+  when: hcloud_load_balancers | length > 0
+
+- name: Validate inventory output prerequisites
+  ansible.builtin.assert:
+    that:
+      - hcloud_inventory_path | length > 0
+    fail_msg: >-
+      hcloud_write_inventory is true but hcloud_inventory_path is empty.
+      Set hcloud_inventory_path to the destination file path.
+    success_msg: "Inventory output path is set"
+  when: hcloud_write_inventory | bool
+
+- name: Display validation summary
+  ansible.builtin.debug:
+    msg:
+      - "=========================================="
+      - "Hetzner Cloud Role Validation Complete"
+      - "=========================================="
+      - "Provision: {{ hcloud_provision }}"
+      - "Global state: {{ hcloud_state }}"
+      - "Allow teardown: {{ hcloud_allow_teardown }}"
+      - "SSH keys: {{ hcloud_ssh_keys | length }}"
+      - "Networks: {{ hcloud_networks | length }}"
+      - "Subnetworks: {{ hcloud_subnetworks | length }}"
+      - "Firewalls: {{ hcloud_firewalls | length }}"
+      - "Placement groups: {{ hcloud_placement_groups | length }}"
+      - "Servers: {{ hcloud_servers | length }}"
+      - "Server-network attachments: {{ hcloud_server_networks | length }}"
+      - "Primary IPs: {{ hcloud_primary_ips | length }}"
+      - "Floating IPs: {{ hcloud_floating_ips | length }}"
+      - "Volumes: {{ hcloud_volumes | length }}"
+      - "Load balancers: {{ hcloud_load_balancers | length }}"
+      - "=========================================="

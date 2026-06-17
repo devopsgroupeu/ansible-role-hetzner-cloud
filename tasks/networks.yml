@@ -1,0 +1,9 @@
+---
+# =============================================================================
+# networks.yml — Phase 2: implement hetzner.hcloud.network loop
+# =============================================================================
+
+- name: Networks task — not yet implemented (Phase 2)
+  ansible.builtin.debug:
+    msg: "networks.yml reached (Phase 2 will implement hetzner.hcloud.network)"
+  when: false

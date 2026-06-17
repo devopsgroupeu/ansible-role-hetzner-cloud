@@ -1,0 +1,61 @@
+---
+# =============================================================================
+# verify.yml — assert offline validation passed and no API was called
+#
+# Phase 1: verifies that the role can be included cleanly, validate.yml
+# completes, and the offline gate (hcloud_provision=false) is respected.
+# We re-run the role here so outputs.yml sets the fact within this play scope.
+# Phase 4+ will extend this with richer checks on rendered template content.
+# =============================================================================
+
+- name: Verify offline validation
+  hosts: all
+  gather_facts: false
+
+  vars:
+    # Keep the offline gate active in verify too
+    hcloud_provision: false
+    hcloud_ssh_keys:
+      - name: openprime
+        public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKeyForCIValidationOnly test@ci"
+    hcloud_networks:
+      - name: openprime-net
+        ip_range: "10.0.0.0/16"
+    hcloud_servers:
+      - name: openprime-cp-01
+        server_type: cx22
+        image: debian-12
+        location: nbg1
+        labels:
+          role: control-plane
+
+  tasks:
+    - name: Re-include role to set facts within verify play scope
+      ansible.builtin.include_role:
+        name: ansible-role-hetzner-cloud
+
+    - name: Assert hcloud_provisioned_servers fact is set
+      ansible.builtin.assert:
+        that:
+          - hcloud_provisioned_servers is defined
+          - hcloud_provisioned_servers | type_debug == 'list'
+        fail_msg: >-
+          hcloud_provisioned_servers fact was not set by outputs.yml.
+          The role did not complete successfully.
+        success_msg: "hcloud_provisioned_servers fact is set (offline run, list is empty as expected)"
+
+    - name: Assert hcloud_provisioned_servers is empty (no real API calls made)
+      ansible.builtin.assert:
+        that:
+          - hcloud_provisioned_servers | length == 0
+        fail_msg: >-
+          hcloud_provisioned_servers is not empty. This suggests API calls were
+          made, which should not happen with hcloud_provision=false.
+        success_msg: "hcloud_provisioned_servers=[] confirmed — no resources were provisioned"
+
+    - name: Confirm offline run completed without any Hetzner API interaction
+      ansible.builtin.debug:
+        msg: >-
+          Verification passed. validate.yml + preflight.yml ran, argument_specs
+          were validated, and outputs.yml set hcloud_provisioned_servers=[].
+          No HCLOUD_TOKEN was required and no Hetzner resources were created.

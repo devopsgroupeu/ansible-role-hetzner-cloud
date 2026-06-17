@@ -1,0 +1,17 @@
+profile: production
+
+exclude_paths:
+  - .github/
+  - .ansible-lint
+  - venv/
+  - .git/
+
+warn_list:
+  - no-handler
+  - var-spacing
+  - var-naming
+  - yaml[comments-indentation]
+
+skip_list:
+  - experimental
+  - yaml[line-length]

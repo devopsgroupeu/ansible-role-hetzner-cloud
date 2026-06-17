@@ -1,0 +1,9 @@
+---
+# =============================================================================
+# floating_ips.yml — Phase 2: implement hetzner.hcloud.floating_ip loop
+# =============================================================================
+
+- name: Floating IPs task — not yet implemented (Phase 2)
+  ansible.builtin.debug:
+    msg: "floating_ips.yml reached (Phase 2 will implement hetzner.hcloud.floating_ip)"
+  when: false

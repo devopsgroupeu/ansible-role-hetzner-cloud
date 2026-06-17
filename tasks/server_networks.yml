@@ -1,0 +1,9 @@
+---
+# =============================================================================
+# server_networks.yml — Phase 2: implement hetzner.hcloud.server_network loop
+# =============================================================================
+
+- name: Server-network attachments task — not yet implemented (Phase 2)
+  ansible.builtin.debug:
+    msg: "server_networks.yml reached (Phase 2 will implement hetzner.hcloud.server_network)"
+  when: false

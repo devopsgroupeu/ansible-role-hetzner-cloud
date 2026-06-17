@@ -1,0 +1,9 @@
+---
+# =============================================================================
+# firewalls.yml — Phase 2: implement hetzner.hcloud.firewall loop
+# =============================================================================
+
+- name: Firewalls task — not yet implemented (Phase 2)
+  ansible.builtin.debug:
+    msg: "firewalls.yml reached (Phase 2 will implement hetzner.hcloud.firewall)"
+  when: false
