@@ -49,6 +49,10 @@ pip install -r requirements.txt
 
 The `hcloud` Python SDK is vendored inside the `hetzner.hcloud` collection since v1.16 (Python 3.10+ required). The `hcloud>=2.0.0` entry in `requirements.txt` is listed for explicit clarity.
 
+> **Version note:** `requirements.yml` pins `hetzner.hcloud >= 4.0.0` as a minimum.
+> Some optional fields used by this role (e.g. `primary_ip.assignee_type`) are only
+> available in `>= 6.9.0`. A recent collection version is strongly recommended.
+
 ---
 
 ## Authentication

@@ -40,3 +40,17 @@
           - network_info.hcloud_network_info[0].ip_range == "10.99.0.0/16"
         fail_msg: "molecule-live-net was not found."
         success_msg: "molecule-live-net exists with correct IP range."
+
+    # Guard: catch template regressions — if hcloud_provisioned_servers is set
+    # and non-empty, every rendered ansible_host must resolve to a non-empty string.
+    # Relies on ipv4_address being present on each hcloud_server return value.
+    - name: Assert every provisioned server has a non-empty ansible_host (ipv4_address)
+      ansible.builtin.assert:
+        that:
+          - item.ipv4_address | default('') | length > 0
+        fail_msg: >-
+          Server '{{ item.name }}' has an empty ipv4_address — inventory template
+          would render a blank ansible_host. Check hcloud_inventory.ini.j2 field names.
+        success_msg: "Server '{{ item.name }}' has ipv4_address={{ item.ipv4_address }}."
+      loop: "{{ hcloud_provisioned_servers | default([]) }}"
+      when: hcloud_provisioned_servers | default([]) | length > 0
