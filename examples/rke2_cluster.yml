@@ -176,10 +176,20 @@
   roles:
     - devopsgroupeu.hetzner_cloud
 
-# Second play: use hetzner.hcloud dynamic inventory to run rke2 and haproxy roles
-# - hosts: role_control_plane
+# Second stage: configure the provisioned hosts via the dynamic (or static) inventory.
+# This role groups hosts as server_nodes / agent_nodes / proxy_hosts / vault — the
+# names the config-tier roles consume. Config order: haproxy (VIP) -> vault ->
+# rke2 servers -> rke2 agents. See the workspace-root examples/site.yml for the full
+# end-to-end playbook.
+# - hosts: proxy_hosts
+#   roles:
+#     - devopsgroupeu.haproxy_keepalived
+# - hosts: vault
+#   roles:
+#     - devopsgroupeu.hashicorp_vault
+# - hosts: server_nodes
 #   roles:
 #     - devopsgroupeu.rke2
-# - hosts: role_worker
+# - hosts: agent_nodes
 #   roles:
 #     - devopsgroupeu.rke2
