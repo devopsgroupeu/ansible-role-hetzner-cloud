@@ -8,7 +8,8 @@
 # Requires: HCLOUD_TOKEN set, hetzner.hcloud collection installed.
 # =============================================================================
 
-- hosts: localhost
+- name: Provision Hetzner Cloud RKE2 HA topology
+  hosts: localhost
   connection: local
   gather_facts: false
   become: false

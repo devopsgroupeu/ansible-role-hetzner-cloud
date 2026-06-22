@@ -55,5 +55,7 @@
         network: molecule-live-net
         ip: "10.99.1.10"
 
-  roles:
-    - ansible-role-hetzner-cloud
+  tasks:
+    - name: Run hetzner-cloud role (live provisioning)
+      ansible.builtin.include_role:
+        name: ansible-role-hetzner-cloud

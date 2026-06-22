@@ -19,7 +19,8 @@
 #     -e hcloud_allow_teardown=true
 # =============================================================================
 
-- hosts: localhost
+- name: Tear down Hetzner Cloud resources
+  hosts: localhost
   connection: local
   gather_facts: false
   become: false

@@ -44,5 +44,7 @@
         public_key: ""
         state: absent
 
-  roles:
-    - ansible-role-hetzner-cloud
+  tasks:
+    - name: Run hetzner-cloud role (live teardown)
+      ansible.builtin.include_role:
+        name: ansible-role-hetzner-cloud
