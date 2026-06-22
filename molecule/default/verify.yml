@@ -4,8 +4,8 @@
 #
 # Phase 4: verifies that:
 #   - hcloud_provisioned_servers fact is defined and is an empty list (offline)
-#   - The static inventory file was rendered to /tmp/hcloud_inventory.ini
-#   - The inventory file contains expected group headers
+#   - The static inventory file was rendered to /tmp/hcloud_inventory.yml
+#   - The inventory file contains expected YAML group keys
 # =============================================================================
 
 - name: Verify offline validation
@@ -16,7 +16,7 @@
     # Keep the offline gate active in verify too
     hcloud_provision: false
     hcloud_write_inventory: true
-    hcloud_inventory_path: /tmp/hcloud_inventory.ini
+    hcloud_inventory_path: /tmp/hcloud_inventory.yml
     hcloud_ssh_keys:
       - name: openprime
         public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKeyForCIValidationOnly test@ci"
@@ -89,23 +89,23 @@
         src: "{{ hcloud_inventory_path }}"
       register: inv_content
 
-    - name: Assert inventory contains expected group headers
+    - name: Assert inventory contains expected YAML group keys
       ansible.builtin.assert:
         that:
-          - "'[server_nodes]' in inv_content.content | b64decode"
-          - "'[agent_nodes]' in inv_content.content | b64decode"
-          - "'[proxy_hosts]' in inv_content.content | b64decode"
-          - "'[vault]' in inv_content.content | b64decode"
+          - "'server_nodes:' in inv_content.content | b64decode"
+          - "'agent_nodes:' in inv_content.content | b64decode"
+          - "'proxy_hosts:' in inv_content.content | b64decode"
+          - "'vault:' in inv_content.content | b64decode"
         fail_msg: >-
-          Inventory file is missing expected group headers.
+          Inventory file is missing expected YAML group keys.
           Content: {{ inv_content.content | b64decode }}
-        success_msg: "Inventory file contains all expected group headers"
+        success_msg: "Inventory file contains all expected YAML group keys"
 
     - name: Confirm offline run completed without any Hetzner API interaction
       ansible.builtin.debug:
         msg: >-
           Verification passed. validate.yml ran, argument_specs validated,
-          outputs.yml set hcloud_provisioned_servers=[], and the static inventory
-          template rendered to {{ hcloud_inventory_path }} with consumer group
-          headers (server_nodes, agent_nodes, proxy_hosts, vault).
+          outputs.yml set hcloud_provisioned_servers=[], and the static YAML
+          inventory template rendered to {{ hcloud_inventory_path }} with
+          consumer group keys (server_nodes, agent_nodes, proxy_hosts, vault).
           No HCLOUD_TOKEN was required and no Hetzner resources were created.

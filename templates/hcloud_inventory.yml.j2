@@ -13,30 +13,57 @@
 {% set proxy_hosts = hcloud_provisioned_servers | default([]) | selectattr('labels', 'defined') | selectattr('labels.role', 'defined') | selectattr('labels.role', 'equalto', 'proxy') | list %}
 {% set vault_hosts = hcloud_provisioned_servers | default([]) | selectattr('labels', 'defined') | selectattr('labels.role', 'defined') | selectattr('labels.role', 'equalto', 'vault') | list %}
 {% set ungrouped = hcloud_provisioned_servers | default([]) | rejectattr('labels', 'defined') | list %}
-
-[server_nodes]
+all:
+  children:
+    server_nodes:
+      hosts:
+{% if server_nodes | length > 0 %}
 {% for srv in server_nodes %}
-{{ srv.name }} ansible_host={{ srv.ipv4_address | default('') }} hcloud_private_ip={{ (srv.private_networks_info | default([]) | map(attribute='ip') | first) | default('') }}
+        {{ srv.name }}:
+          ansible_host: {{ srv.ipv4_address | default('') }}
+          hcloud_private_ip: {{ (srv.private_networks_info | default([]) | map(attribute='ip') | first) | default('') }}
 {% endfor %}
-
-[agent_nodes]
+{% else %}
+        {}
+{% endif %}
+    agent_nodes:
+      hosts:
+{% if agent_nodes | length > 0 %}
 {% for srv in agent_nodes %}
-{{ srv.name }} ansible_host={{ srv.ipv4_address | default('') }} hcloud_private_ip={{ (srv.private_networks_info | default([]) | map(attribute='ip') | first) | default('') }}
+        {{ srv.name }}:
+          ansible_host: {{ srv.ipv4_address | default('') }}
+          hcloud_private_ip: {{ (srv.private_networks_info | default([]) | map(attribute='ip') | first) | default('') }}
 {% endfor %}
-
-[proxy_hosts]
+{% else %}
+        {}
+{% endif %}
+    proxy_hosts:
+      hosts:
+{% if proxy_hosts | length > 0 %}
 {% for srv in proxy_hosts %}
-{{ srv.name }} ansible_host={{ srv.ipv4_address | default('') }} hcloud_private_ip={{ (srv.private_networks_info | default([]) | map(attribute='ip') | first) | default('') }}
+        {{ srv.name }}:
+          ansible_host: {{ srv.ipv4_address | default('') }}
+          hcloud_private_ip: {{ (srv.private_networks_info | default([]) | map(attribute='ip') | first) | default('') }}
 {% endfor %}
-
-[vault]
+{% else %}
+        {}
+{% endif %}
+    vault:
+      hosts:
+{% if vault_hosts | length > 0 %}
 {% for srv in vault_hosts %}
-{{ srv.name }} ansible_host={{ srv.ipv4_address | default('') }} hcloud_private_ip={{ (srv.private_networks_info | default([]) | map(attribute='ip') | first) | default('') }}
+        {{ srv.name }}:
+          ansible_host: {{ srv.ipv4_address | default('') }}
+          hcloud_private_ip: {{ (srv.private_networks_info | default([]) | map(attribute='ip') | first) | default('') }}
 {% endfor %}
+{% else %}
+        {}
+{% endif %}
 {% if ungrouped | length > 0 %}
-
-[ungrouped]
+    ungrouped:
+      hosts:
 {% for srv in ungrouped %}
-{{ srv.name }} ansible_host={{ srv.ipv4_address | default('') }}
+        {{ srv.name }}:
+          ansible_host: {{ srv.ipv4_address | default('') }}
 {% endfor %}
 {% endif %}

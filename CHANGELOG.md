@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `molecule/default/` — offline render/validate scenario (no HCLOUD_TOKEN needed)
 - `requirements.yml` — `hetzner.hcloud >=4.0.0`
 - `requirements.txt` — pinned test tooling matching sibling roles
-- `templates/hcloud_inventory.ini.j2` — static inventory template (Phase 4)
+- `templates/hcloud_inventory.yml.j2` — static YAML inventory template (Phase 4)
 - `examples/rke2_cluster.yml` — full HA RKE2 topology example
 - `examples/teardown.yml` — safe teardown walkthrough
 - `.ansible-lint` (profile: production), `.yamllint`, `.editorconfig`, `.gitignore`

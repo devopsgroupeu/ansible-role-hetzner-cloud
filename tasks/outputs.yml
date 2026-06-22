@@ -22,7 +22,7 @@
 
 - name: Write static inventory for downstream roles
   ansible.builtin.template:
-    src: hcloud_inventory.ini.j2
+    src: hcloud_inventory.yml.j2
     dest: "{{ hcloud_inventory_path }}"
     mode: "0640"
   when: hcloud_write_inventory | bool

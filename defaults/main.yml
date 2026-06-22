@@ -44,8 +44,8 @@ hcloud_default_image: debian-12
 hcloud_managed_label_key: managed-by
 hcloud_managed_label_value: ansible-hetzner-cloud
 
-# When true, write a static INI inventory to hcloud_inventory_path using
-# templates/hcloud_inventory.ini.j2 (useful for air-gapped / CI pipelines
+# When true, write a static YAML inventory to hcloud_inventory_path using
+# templates/hcloud_inventory.yml.j2 (useful for air-gapped / CI pipelines
 # that cannot use the hetzner.hcloud dynamic inventory plugin).
 hcloud_write_inventory: false
 

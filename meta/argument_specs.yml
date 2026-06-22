@@ -104,8 +104,8 @@ argument_specs:
         required: false
         default: false
         description: >
-          When true, renders templates/hcloud_inventory.ini.j2 to
-          hcloud_inventory_path as a static INI inventory for downstream roles.
+          When true, renders templates/hcloud_inventory.yml.j2 to
+          hcloud_inventory_path as a static YAML inventory for downstream roles.
           Useful for air-gapped / CI pipelines without dynamic inventory.
 
       hcloud_inventory_path:

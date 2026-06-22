@@ -48,7 +48,7 @@ An empty token aborts the role with a clear error when `hcloud_provision: true`.
 | `hcloud_default_image` | str | `debian-12` | No | Fallback OS image for servers when not specified per-resource. |
 | `hcloud_managed_label_key` | str | `managed-by` | No | Label key stamped on every created resource to identify what this role owns and enable dynamic inventory grouping. |
 | `hcloud_managed_label_value` | str | `ansible-hetzner-cloud` | No | Label value paired with `hcloud_managed_label_key` on all created resources. |
-| `hcloud_write_inventory` | bool | `false` | No | When `true`, renders `templates/hcloud_inventory.ini.j2` to `hcloud_inventory_path`. Useful for pipelines without a dynamic inventory plugin. |
+| `hcloud_write_inventory` | bool | `false` | No | When `true`, renders `templates/hcloud_inventory.yml.j2` to `hcloud_inventory_path`. Useful for pipelines without a dynamic inventory plugin. |
 | `hcloud_inventory_path` | str | `""` | No | Destination file path for the rendered static inventory. Required (non-empty) when `hcloud_write_inventory: true`. |
 
 ---

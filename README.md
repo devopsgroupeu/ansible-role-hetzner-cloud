@@ -95,7 +95,7 @@ All tunables are prefixed `hcloud_*`. Full documented defaults are in [`defaults
 | `hcloud_default_image` | str | `debian-12` | Fallback OS image for servers |
 | `hcloud_managed_label_key` | str | `managed-by` | Label key stamped on every created resource |
 | `hcloud_managed_label_value` | str | `ansible-hetzner-cloud` | Label value paired with the managed-by key |
-| `hcloud_write_inventory` | bool | `false` | Write a static INI inventory to `hcloud_inventory_path` |
+| `hcloud_write_inventory` | bool | `false` | Write a static YAML inventory to `hcloud_inventory_path` |
 | `hcloud_inventory_path` | str | `""` | Destination for the static inventory (required if `hcloud_write_inventory: true`) |
 
 ### Resource lists (all default to `[]`)

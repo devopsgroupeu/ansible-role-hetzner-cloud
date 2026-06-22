@@ -50,7 +50,7 @@
           - item.ipv4_address | default('') | length > 0
         fail_msg: >-
           Server '{{ item.name }}' has an empty ipv4_address — inventory template
-          would render a blank ansible_host. Check hcloud_inventory.ini.j2 field names.
+          would render a blank ansible_host. Check hcloud_inventory.yml.j2 field names.
         success_msg: "Server '{{ item.name }}' has ipv4_address={{ item.ipv4_address }}."
       loop: "{{ hcloud_provisioned_servers | default([]) }}"
       when: hcloud_provisioned_servers | default([]) | length > 0

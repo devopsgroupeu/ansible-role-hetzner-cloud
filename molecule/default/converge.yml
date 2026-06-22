@@ -21,7 +21,7 @@
 
     # Exercise inventory rendering offline
     hcloud_write_inventory: true
-    hcloud_inventory_path: /tmp/hcloud_inventory.ini
+    hcloud_inventory_path: /tmp/hcloud_inventory.yml
 
     # Representative resource vars to exercise validate.yml + argument_specs
     hcloud_ssh_keys:

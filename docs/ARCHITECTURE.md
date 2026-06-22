@@ -44,7 +44,7 @@ flowchart TD
     end
 
     subgraph Inventory["Inventory hand-off"]
-        inv["hcloud.yml plugin\nor hcloud_inventory.ini.j2"]
+        inv["hcloud.yml plugin\nor hcloud_inventory.yml.j2"]
     end
 
     subgraph DownstreamRoles["Config-tier roles (subsequent plays)"]
@@ -88,7 +88,7 @@ consumer roles' expected names:
 | `role=vault` | `vault` | `devopsgroupeu.hashicorp_vault` |
 
 The dynamic inventory plugin (`hcloud.yml`) uses a `groups:` map to produce
-these names. The static template (`templates/hcloud_inventory.ini.j2`) uses
+these names. The static template (`templates/hcloud_inventory.yml.j2`) uses
 the same mapping. Either hand-off produces an inventory that downstream roles
 consume without modification.
 
