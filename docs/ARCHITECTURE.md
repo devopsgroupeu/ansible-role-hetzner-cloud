@@ -17,12 +17,12 @@ flowchart TD
     end
 
     subgraph HCloud["Hetzner Cloud Project"]
-        net["Private network\nprod-net 10.0.0.0/16"]
-        fip["Floating IP\ningress-vip"]
+        net["Private network<br/>prod-net 10.0.0.0/16"]
+        fip["Floating IP<br/>ingress-vip"]
 
         subgraph proxy_group["proxy_hosts (role=proxy)"]
-            px1["proxy-01\nHAProxy + Keepalived"]
-            px2["proxy-02\nHAProxy + Keepalived"]
+            px1["proxy-01<br/>HAProxy + Keepalived"]
+            px2["proxy-02<br/>HAProxy + Keepalived"]
         end
 
         subgraph vault_group["vault (role=vault)"]
@@ -32,26 +32,26 @@ flowchart TD
         end
 
         subgraph cp_group["server_nodes (role=control-plane)"]
-            cp1["cp-01\nRKE2 server"]
-            cp2["cp-02\nRKE2 server"]
-            cp3["cp-03\nRKE2 server"]
+            cp1["cp-01<br/>RKE2 server"]
+            cp2["cp-02<br/>RKE2 server"]
+            cp3["cp-03<br/>RKE2 server"]
         end
 
         subgraph wk_group["agent_nodes (role=worker)"]
-            wk1["wk-01\nRKE2 agent"]
-            wk2["wk-02\nRKE2 agent"]
+            wk1["wk-01<br/>RKE2 agent"]
+            wk2["wk-02<br/>RKE2 agent"]
         end
     end
 
     subgraph Inventory["Inventory hand-off"]
-        inv["hcloud.yml plugin\nor hcloud_inventory.yml.j2"]
+        inv["hcloud.yml plugin<br/>or hcloud_inventory.yml.j2"]
     end
 
     subgraph DownstreamRoles["Config-tier roles (subsequent plays)"]
-        r_haproxy["devopsgroupeu.haproxy_keepalived\nhosts: proxy_hosts"]
-        r_vault["devopsgroupeu.hashicorp_vault\nhosts: vault"]
-        r_rke2_srv["devopsgroupeu.rke2\nhosts: server_nodes"]
-        r_rke2_agent["devopsgroupeu.rke2\nhosts: agent_nodes"]
+        r_haproxy["devopsgroupeu.haproxy_keepalived<br/>hosts: proxy_hosts"]
+        r_vault["devopsgroupeu.hashicorp_vault<br/>hosts: vault"]
+        r_rke2_srv["devopsgroupeu.rke2<br/>hosts: server_nodes"]
+        r_rke2_agent["devopsgroupeu.rke2<br/>hosts: agent_nodes"]
     end
 
     play -->|"creates"| net

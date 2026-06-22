@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Phase 5: CI, live molecule scenario, docs, and Galaxy readiness
 - `.gitlab-ci.yml` — lint/test/disabled-release stages; `molecule:live` manual/schedule job
-- `.github/workflows/ci.yml` — yamllint + ansible-lint + molecule default matrix (debian12/13, ubuntu2204/2404)
+- `.github/workflows/ci.yml` — yamllint + ansible-lint + molecule default matrix (debian12, debian13, ubuntu2404, rockylinux9)
 - `.github/workflows/galaxy.yml` — SemVer-tag-guarded Galaxy publish (pinned action v1.2.1)
 - `molecule/live/` — delegated live scenario (needs `HCLOUD_TOKEN`; NOT part of default CI; always destroys)
 - `docs/CONFIGURATION.md` — full variable reference for all `hcloud_*` vars
@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `firewalls.yml`, `placement_groups.yml`, `servers.yml`, `server_networks.yml`,
   `primary_ips.yml`, `floating_ips.yml`, `volumes.yml`, `load_balancers.yml`)
 - `molecule/default/` — offline render/validate scenario (no HCLOUD_TOKEN needed)
-- `requirements.yml` — `hetzner.hcloud >=4.0.0`
+- `requirements.yml` — `hetzner.hcloud >=6.9.0`
 - `requirements.txt` — pinned test tooling matching sibling roles
 - `templates/hcloud_inventory.yml.j2` — static YAML inventory template (Phase 4)
 - `examples/rke2_cluster.yml` — full HA RKE2 topology example

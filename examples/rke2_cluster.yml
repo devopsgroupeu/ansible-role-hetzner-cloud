@@ -179,8 +179,8 @@
 # Second stage: configure the provisioned hosts via the dynamic (or static) inventory.
 # This role groups hosts as server_nodes / agent_nodes / proxy_hosts / vault — the
 # names the config-tier roles consume. Config order: haproxy (VIP) -> vault ->
-# rke2 servers -> rke2 agents. See the workspace-root examples/site.yml for the full
-# end-to-end playbook.
+# rke2 servers -> rke2 agents. See docs/INTEGRATION.md ("Full multi-play pipeline
+# example") for the full end-to-end playbook.
 # - hosts: proxy_hosts
 #   roles:
 #     - devopsgroupeu.haproxy_keepalived

@@ -1,5 +1,7 @@
 # ansible-role-hetzner-cloud
 
+[![Ansible Galaxy](https://img.shields.io/badge/Ansible%20Galaxy-devopsgroupeu.hetzner_cloud-blue?logo=ansible)](https://galaxy.ansible.com/ui/standalone/roles/devopsgroupeu/hetzner_cloud/)
+
 **Namespace:** `devopsgroupeu` | **Role:** `hetzner_cloud` | **License:** Apache-2.0
 
 Controller-side Ansible role that provisions Hetzner Cloud infrastructure (SSH keys, networks, subnetworks, firewalls, placement groups, servers, server-network attachments, primary IPs, floating IPs, volumes, and load balancers) via the [`hetzner.hcloud`](https://galaxy.ansible.com/hetzner/hcloud) collection.
@@ -23,6 +25,30 @@ This is different from the config roles (`rke2`, `haproxy-keepalived`) which run
 
 ---
 
+## Installation
+
+Pull this role into your playbook project via a `requirements.yml` git source:
+
+```yaml
+roles:
+  - name: devopsgroupeu.hetzner_cloud
+    src: https://github.com/devopsgroupeu/ansible-role-hetzner-cloud
+    scm: git
+    version: "v1.0.0"
+```
+
+```bash
+ansible-galaxy install -r requirements.yml
+```
+
+Once published to Ansible Galaxy, the role can also be installed by name:
+
+```bash
+ansible-galaxy role install devopsgroupeu.hetzner_cloud
+```
+
+---
+
 ## Requirements
 
 ### Collection
@@ -38,7 +64,7 @@ ansible-galaxy collection install -r requirements.yml
 ```yaml
 collections:
   - name: hetzner.hcloud
-    version: ">=4.0.0"
+    version: ">=6.9.0"
 ```
 
 ### Python
@@ -49,9 +75,9 @@ pip install -r requirements.txt
 
 The `hcloud` Python SDK is vendored inside the `hetzner.hcloud` collection since v1.16 (Python 3.10+ required). The `hcloud>=2.0.0` entry in `requirements.txt` is listed for explicit clarity.
 
-> **Version note:** `requirements.yml` pins `hetzner.hcloud >= 4.0.0` as a minimum.
-> Some optional fields used by this role (e.g. `primary_ip.assignee_type`) are only
-> available in `>= 6.9.0`. A recent collection version is strongly recommended.
+> **Version note:** `requirements.yml` pins `hetzner.hcloud >= 6.9.0` as a minimum.
+> Some optional fields used by this role (e.g. `primary_ip.assignee_type`) require
+> `>= 6.9.0`. A recent collection version is strongly recommended.
 
 ---
 
