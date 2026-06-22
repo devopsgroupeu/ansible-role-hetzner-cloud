@@ -42,9 +42,15 @@
     success_msg: "Teardown explicitly allowed"
   when: >-
     hcloud_state == 'absent' or
-    (hcloud_servers | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
+    (hcloud_ssh_keys | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
     (hcloud_networks | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
+    (hcloud_subnetworks | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
     (hcloud_firewalls | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
+    (hcloud_placement_groups | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
+    (hcloud_servers | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
+    (hcloud_server_networks | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
+    (hcloud_primary_ips | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
+    (hcloud_floating_ips | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
     (hcloud_volumes | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
     (hcloud_load_balancers | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0)
 
