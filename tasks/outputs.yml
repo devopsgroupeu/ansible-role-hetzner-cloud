@@ -7,7 +7,7 @@
 # runs (hcloud_provision: false) the variable is never set, so we guard with
 # default({'results': []}) to avoid undefined-variable errors.
 #
-# hcloud_provisioned_servers — list of {name, ipv4_address, private_networks,
+# hcloud_provisioned_servers — list of {name, ipv4_address, private_networks_info,
 #   labels} dicts derived from the server module return value. Downstream plays
 #   can iterate this directly or use add_host to build an in-memory inventory.
 # =============================================================================

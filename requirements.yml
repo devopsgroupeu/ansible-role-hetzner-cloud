@@ -1,4 +1,4 @@
 ---
 collections:
   - name: hetzner.hcloud
-    version: ">=4.0.0"
+    version: ">=6.9.0"

@@ -15,3 +15,7 @@ warn_list:
 skip_list:
   - experimental
   - yaml[line-length]
+
+enable_list:
+  - no-log-password
+  - loop-var-prefix
