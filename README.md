@@ -141,18 +141,16 @@ After provisioning, use the `hetzner.hcloud` inventory plugin to automatically d
 plugin: hetzner.hcloud.hcloud
 api_token: "{{ lookup('env', 'HCLOUD_TOKEN') }}"
 network: prod-net
-keyed_groups:
-  - key: labels.role
-    prefix: role
-    separator: "_"
-  - key: labels.cluster
-    prefix: cluster
-    separator: "_"
+groups:
+  server_nodes: "labels.role == 'control-plane'"
+  agent_nodes: "labels.role == 'worker'"
+  proxy_hosts: "labels.role == 'proxy'"
+  vault: "labels.role == 'vault'"
 compose:
   ansible_host: private_ipv4_address
 ```
 
-Label your servers with `role` and `cluster` keys in `hcloud_servers[].labels`. The inventory plugin produces groups like `role_control_plane`, `role_worker`, `role_proxy` that downstream roles target directly.
+Label your servers with the `role` key in `hcloud_servers[].labels` using values `control-plane`, `worker`, `proxy`, or `vault`. The `groups:` map emits the exact group names that each downstream role expects (`server_nodes`, `agent_nodes`, `proxy_hosts`, `vault`).
 
 See [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for full integration details including the haproxy-keepalived floating IP setup.
 
@@ -182,8 +180,11 @@ The `molecule/live/` scenario creates real Hetzner Cloud resources and requires 
 
 ## Integration with sibling roles
 
+Config-tier order — each role depends on the one above it:
+
 1. `devopsgroupeu.hetzner_cloud` — provisions Hetzner Cloud infrastructure (this role, runs on `localhost`)
-2. `devopsgroupeu.rke2` — installs RKE2 on the provisioned servers (runs on target hosts)
-3. `devopsgroupeu.haproxy_keepalived` — configures HA load balancing + floating IP VIP (runs on proxy hosts)
+2. `devopsgroupeu.haproxy_keepalived` — configures HA load balancing + floating IP VIP (runs on `proxy_hosts`; label `role=proxy`)
+3. `devopsgroupeu.hashicorp_vault` — installs a Raft HA Vault cluster behind the VIP (runs on `vault`; label `role=vault`)
+4. `devopsgroupeu.rke2` — installs RKE2 servers then agents (runs on `server_nodes` / `agent_nodes`; labels `role=control-plane` / `role=worker`)
 
 See [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for the full multi-play pipeline and dynamic inventory setup.
