@@ -30,12 +30,16 @@ cache:
 
 yamllint:
   stage: lint
-  image: python:3.11-slim
+  image: python:3.12-slim
   cache: []
   before_script:
     - pip install yamllint
   script:
-    - yamllint defaults/ handlers/ tasks/ templates/ molecule/ meta/ examples/ .gitlab-ci.yml .yamllint
+    - >
+      yamllint defaults/ handlers/ tasks/ templates/ meta/ .gitlab-ci.yml .yamllint
+      $([ -d molecule/ ] && echo molecule/)
+      $([ -d examples/ ] && echo examples/)
+      $([ -d docs/ ] && echo docs/)
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH == "main"'
@@ -44,7 +48,7 @@ yamllint:
 
 ansible-lint:
   stage: lint
-  image: python:3.11-slim
+  image: python:3.12-slim
   cache: []
   before_script:
     - pip install ansible-lint
@@ -58,7 +62,7 @@ ansible-lint:
 
 syntax-check:
   stage: lint
-  image: python:3.11-slim
+  image: python:3.12-slim
   cache: []
   before_script:
     - pip install ansible-core
@@ -78,7 +82,7 @@ syntax-check:
 # Shared template for molecule jobs
 .molecule_test:
   stage: test
-  image: python:3.11
+  image: python:3.12
   services:
     - docker:24-dind
   variables:
@@ -126,7 +130,7 @@ molecule:live:
 
 # publish:galaxy:
 #   stage: release
-#   image: python:3.11-slim
+#   image: python:3.12-slim
 #   before_script:
 #     - pip install ansible
 #   script:
@@ -142,7 +146,7 @@ molecule:live:
 
 # publish:galaxy:manual:
 #   stage: release
-#   image: python:3.11-slim
+#   image: python:3.12-slim
 #   before_script:
 #     - pip install ansible
 #   script:

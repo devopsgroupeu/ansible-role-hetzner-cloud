@@ -52,8 +52,8 @@ jobs:
         distro:
           - debian12
           - debian13
-          - ubuntu2204
           - ubuntu2404
+          - rockylinux9
     steps:
       - name: Checkout
         uses: actions/checkout@v4
