@@ -169,6 +169,16 @@ argument_specs:
             description: >
               CIDR block for the network (e.g. "10.0.0.0/16"). Required when
               state=present.
+          expose_routes_to_vswitch:
+            type: bool
+            required: false
+            description: >
+              Expose routes to the vSwitch connected to this network. Only
+              relevant when subnets of type vswitch are attached.
+          delete_protection:
+            type: bool
+            required: false
+            description: Prevent accidental deletion of this network.
           labels:
             type: dict
             required: false
@@ -615,6 +625,24 @@ argument_specs:
             description: >
               Location slug. Required when state=present unless network_zone
               is provided.
+          network_zone:
+            type: str
+            required: false
+            description: >
+              Network zone slug (e.g. eu-central). Alternative to location for
+              placing the load balancer.
+          algorithm:
+            type: str
+            required: false
+            choices:
+              - round_robin
+              - least_connections
+            description: >
+              Load balancing algorithm. Defaults to round_robin when not set.
+          delete_protection:
+            type: bool
+            required: false
+            description: Prevent accidental deletion of this load balancer.
           network:
             type: str
             required: false

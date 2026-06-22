@@ -92,6 +92,8 @@ hcloud_networks:
 |---|---|---|---|
 | `name` | str | Yes | Network name. |
 | `ip_range` | str | No | CIDR block for the network. Required when `state: present`. |
+| `expose_routes_to_vswitch` | bool | No | Expose routes to the vSwitch connected to this network. Only relevant when subnets of type `vswitch` are attached. |
+| `delete_protection` | bool | No | Prevent accidental deletion of this network. |
 | `labels` | dict | No | Arbitrary key/value labels. |
 | `state` | str | No | Per-resource state override. |
 
@@ -363,6 +365,9 @@ hcloud_load_balancers:
 | `name` | str | Yes | Load balancer name. |
 | `load_balancer_type` | str | No | Type slug (e.g. `lb11`). Required when `state: present`. |
 | `location` | str | No | Location slug. Required when `state: present` unless `network_zone` is given. |
+| `network_zone` | str | No | Network zone slug (e.g. `eu-central`). Alternative to `location` for placing the load balancer. |
+| `algorithm` | str | No | Load balancing algorithm: `round_robin` (default) or `least_connections`. |
+| `delete_protection` | bool | No | Prevent accidental deletion of this load balancer. |
 | `network` | str | No | Private network name to attach the load balancer to for private IP routing. |
 | `labels` | dict | No | Arbitrary key/value labels. |
 | `services` | list[dict] | No | Service definitions (protocol, listen_port, destination_port). Each becomes a `load_balancer_service` task. |
