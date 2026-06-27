@@ -1,8 +1,14 @@
-# ansible-role-hetzner-cloud
+# Ansible Role - Hetzner Cloud
 
+[![CI](https://github.com/devopsgroupeu/ansible-role-hetzner-cloud/actions/workflows/ci.yml/badge.svg)](https://github.com/devopsgroupeu/ansible-role-hetzner-cloud/actions/workflows/ci.yml)
 [![Ansible Galaxy](https://img.shields.io/badge/Ansible%20Galaxy-devopsgroupeu.hetzner--cloud-blue?logo=ansible)](https://galaxy.ansible.com/ui/standalone/roles/devopsgroupeu/hetzner-cloud/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+![GitHub Forks](https://img.shields.io/github/forks/devopsgroupeu/ansible-role-hetzner-cloud)
+![GitHub Stars](https://img.shields.io/github/stars/devopsgroupeu/ansible-role-hetzner-cloud)
+![GitHub Issues](https://img.shields.io/github/issues/devopsgroupeu/ansible-role-hetzner-cloud)
 
-**Namespace:** `devopsgroupeu` | **Role:** `hetzner_cloud` | **License:** Apache-2.0
+[![LinkedIn](https://img.shields.io/badge/linkedin-%230077B5.svg?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/company/devopsgroup8/)
+![Hetzner](https://img.shields.io/badge/Hetzner-D50C2D?logo=hetzner&logoColor=fff&style=for-the-badge)
 
 Controller-side Ansible role that provisions Hetzner Cloud infrastructure (SSH keys, networks, subnetworks, firewalls, placement groups, servers, server-network attachments, primary IPs, floating IPs, volumes, and load balancers) via the [`hetzner.hcloud`](https://galaxy.ansible.com/hetzner/hcloud) collection.
 
