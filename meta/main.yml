@@ -4,12 +4,9 @@ galaxy_info:
   company: DevOpsGroup s.r.o
   description: >
     Provision and bootstrap Hetzner Cloud infrastructure (SSH keys, networks,
-    subnetworks, firewalls, placement groups, servers, server-network attachments,
-    primary IPs, floating IPs, volumes, load balancers) via the hetzner.hcloud
-    collection. Controller-side / localhost role that runs with connection: local
-    and become: false. Intended to stand up hosts that other roles (rke2,
-    haproxy-keepalived) then configure. Default posture: does nothing until
-    resource lists are populated.
+    firewalls, placement groups, servers, primary/floating IPs, volumes, load
+    balancers) via the hetzner.hcloud collection. Controller-side role run on
+    localhost (connection: local).
 
   license: Apache-2.0
   min_ansible_version: "2.19"
