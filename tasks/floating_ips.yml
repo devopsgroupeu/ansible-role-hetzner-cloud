@@ -9,8 +9,8 @@
 #
 # home_location is required on create unless 'server' is given (the IP then
 # anchors to that server's location). Assignment is managed via the 'server'
-# param on this module — haproxy-keepalived subsequently flips it between
-# proxy nodes at runtime via the Hetzner API.
+# param on this module — an external load balancer (e.g. keepalived)
+# subsequently flips it between proxy nodes at runtime via the Hetzner API.
 # =============================================================================
 
 - name: Manage floating IPs

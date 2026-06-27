@@ -157,7 +157,7 @@ argument_specs:
         required: false
         default: []
         description: >
-          Private RFC1918 networks for node-to-node traffic and RKE2 CNI.
+          Private RFC1918 networks for node-to-node traffic and pod/CNI networking.
         options:
           name:
             type: str
@@ -500,7 +500,7 @@ argument_specs:
         default: []
         description: >
           Location-scoped floating IPs (e.g. the HA VIP managed by
-          haproxy-keepalived). Can be re-assigned between servers.
+          an external load balancer / keepalived). Can be re-assigned between servers.
         options:
           name:
             type: str
@@ -607,8 +607,8 @@ argument_specs:
         required: false
         default: []
         description: >
-          Managed load balancers (alternative to self-hosted HAProxy).
-          Off by default; not needed when using haproxy-keepalived role.
+          Managed load balancers (alternative to a self-hosted load balancer).
+          Off by default; not needed when running a self-hosted load balancer.
         options:
           name:
             type: str
