@@ -66,6 +66,6 @@ Security updates are announced via:
 
 1. GitHub Security Advisories
 2. Git tags with security notes
-3. `CHANGELOG.md` with a `[SECURITY]` prefix
+3. GitHub Release notes with a `[SECURITY]` prefix
 
 **Last Updated:** 2026-06-18
