@@ -198,7 +198,6 @@ export HCLOUD_TOKEN="your-token"
 molecule test -s live
 
 # Validate YAML parses correctly (CI test)
-python3 -c "import yaml; yaml.safe_load(open('.gitlab-ci.yml'))"
 python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"
 
 # Count argument_specs entries vs defaults entries
