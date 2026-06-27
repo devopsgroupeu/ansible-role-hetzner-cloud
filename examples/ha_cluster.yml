@@ -1,14 +1,14 @@
 ---
 # =============================================================================
-# examples/rke2_cluster.yml — full HA RKE2 topology
+# examples/ha_cluster.yml — full HA Kubernetes cluster topology
 #
 # Provisions: 3 control-plane + 2 worker nodes + private network + firewall
-# + placement group + floating IP (for haproxy-keepalived VIP).
+# + placement group + floating IP (for a load-balancer VIP).
 #
 # Requires: HCLOUD_TOKEN set, hetzner.hcloud collection installed.
 # =============================================================================
 
-- name: Provision Hetzner Cloud RKE2 HA topology
+- name: Provision Hetzner Cloud HA cluster topology
   hosts: localhost
   connection: local
   gather_facts: false
@@ -52,7 +52,7 @@
             port: "9345"
             source_ips:
               - "10.0.0.0/16"
-            description: rke2 join port (internal only)
+            description: Kubernetes node-join / supervisor port (internal only)
           - direction: in
             protocol: icmp
             source_ips:
@@ -176,20 +176,7 @@
   roles:
     - devopsgroupeu.hetzner-cloud
 
-# Second stage: configure the provisioned hosts via the dynamic (or static) inventory.
-# This role groups hosts as server_nodes / agent_nodes / proxy_hosts / vault — the
-# names the config-tier roles consume. Config order: haproxy (VIP) -> vault ->
-# rke2 servers -> rke2 agents. See docs/INTEGRATION.md ("Full multi-play pipeline
-# example") for the full end-to-end playbook.
-# - hosts: proxy_hosts
-#   roles:
-#     - devopsgroupeu.haproxy-keepalived
-# - hosts: vault
-#   roles:
-#     - devopsgroupeu.hashicorp-vault
-# - hosts: server_nodes
-#   roles:
-#     - devopsgroupeu.rke2
-# - hosts: agent_nodes
-#   roles:
-#     - devopsgroupeu.rke2
+# After provisioning, hosts are grouped by their `role` label (e.g. server_nodes /
+# agent_nodes / proxy_hosts / vault) via the dynamic hcloud inventory plugin or an
+# optional static inventory file (set hcloud_write_inventory: true). Point your
+# downstream plays at those groups. See docs/INTEGRATION.md for the inventory hand-off.

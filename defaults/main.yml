@@ -64,7 +64,7 @@ hcloud_inventory_path: ""
 hcloud_ssh_keys: []
 
 # ── Networks (private) ───────────────────────────────────────────────────────
-# Private RFC1918 networks for node-to-node traffic and RKE2 CNI.
+# Private RFC1918 networks for node-to-node traffic and pod/CNI networking.
 # Required per-item: name, ip_range (when state=present).
 # hcloud_networks:
 #   - name: prod-net
@@ -156,7 +156,7 @@ hcloud_server_networks: []
 hcloud_primary_ips: []
 
 # ── Floating IPs ──────────────────────────────────────────────────────────────
-# Location-scoped floating IPs (e.g. the HA VIP flipped by haproxy-keepalived).
+# Location-scoped floating IPs (e.g. the HA VIP flipped by an external load balancer (e.g. keepalived)).
 # Required per-item: name, type (ipv4|ipv6), home_location (unless server set).
 # hcloud_floating_ips:
 #   - name: ingress-vip
@@ -180,7 +180,7 @@ hcloud_floating_ips: []
 hcloud_volumes: []
 
 # ── Load balancers ────────────────────────────────────────────────────────────
-# Managed load balancers (alternative to self-hosted HAProxy). Off by default.
+# Managed load balancers (alternative to a self-hosted load balancer). Off by default.
 # Required per-item: name, load_balancer_type, location (or network_zone).
 # hcloud_load_balancers:
 #   - name: api-lb

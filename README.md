@@ -27,7 +27,7 @@ This role runs on the **Ansible control node** (your workstation or CI runner), 
   become: false
 ```
 
-This is different from the config roles (`rke2`, `haproxy-keepalived`) which run on the provisioned hosts.
+This is different from configuration roles, which run on the provisioned hosts.
 
 ---
 
@@ -96,7 +96,7 @@ Never hardcode the API token in a vars file or role. Use one of:
    export HCLOUD_TOKEN="your-api-token"
    ```
 
-2. **HashiCorp Vault (recommended for production — Lukas's stack):**
+2. **HashiCorp Vault (recommended for production):**
    ```yaml
    hcloud_api_token: "{{ lookup('community.hashi_vault.vault_kv2_get', 'hetzner/token').secret.value }}"
    ```
@@ -142,7 +142,7 @@ All tunables are prefixed `hcloud_*`. Full documented defaults are in [`defaults
 | `hcloud_servers` | list[dict] | `[]` | Compute instances. Required sub-keys: `name`, `server_type` (when `state: present`). |
 | `hcloud_server_networks` | list[dict] | `[]` | Server-network attachments. Required sub-keys: `server`, `network`. |
 | `hcloud_primary_ips` | list[dict] | `[]` | Stable pre-created public IPs. Required sub-keys: `name`, `type`. |
-| `hcloud_floating_ips` | list[dict] | `[]` | Floating IPs (e.g. HA VIP for haproxy-keepalived). Required sub-keys: `name`, `type`. |
+| `hcloud_floating_ips` | list[dict] | `[]` | Floating IPs (e.g. HA VIP for a load balancer). Required sub-keys: `name`, `type`. |
 | `hcloud_volumes` | list[dict] | `[]` | Block storage volumes. Required sub-keys: `name`, `size`. |
 | `hcloud_load_balancers` | list[dict] | `[]` | Managed load balancers (off by default). Required sub-keys: `name`, `load_balancer_type`. |
 
@@ -182,9 +182,9 @@ compose:
   ansible_host: private_ipv4_address
 ```
 
-Label your servers with the `role` key in `hcloud_servers[].labels` using values `control-plane`, `worker`, `proxy`, or `vault`. The `groups:` map emits the exact group names that each downstream role expects (`server_nodes`, `agent_nodes`, `proxy_hosts`, `vault`).
+Label your servers with the `role` key in `hcloud_servers[].labels` using values `control-plane`, `worker`, `proxy`, or `vault`. The `groups:` map emits group names your downstream plays can target (`server_nodes`, `agent_nodes`, `proxy_hosts`, `vault`).
 
-See [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for full integration details including the haproxy-keepalived floating IP setup.
+See [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for full inventory hand-off details.
 
 ---
 
@@ -205,21 +205,19 @@ The `molecule/live/` scenario creates real Hetzner Cloud resources and requires 
 
 ## Examples
 
-- [`examples/rke2_cluster.yml`](examples/rke2_cluster.yml) — full HA RKE2 topology (3 control-plane + 2 workers + private network + firewalls + floating IP)
+- [`examples/ha_cluster.yml`](examples/ha_cluster.yml) — full HA Kubernetes cluster topology (3 control-plane + 2 workers + private network + firewalls + floating IP)
 - [`examples/teardown.yml`](examples/teardown.yml) — safe teardown walkthrough with correct reverse-dependency ordering
 
 ---
 
-## Integration with sibling roles
+## Inventory output
 
-Config-tier order — each role depends on the one above it:
+After provisioning, this role emits a labeled inventory — via the dynamic
+`hetzner.hcloud` inventory plugin or an optional static file
+(`hcloud_write_inventory: true`) — that your downstream plays consume by
+group/label.
 
-1. `devopsgroupeu.hetzner-cloud` — provisions Hetzner Cloud infrastructure (this role, runs on `localhost`)
-2. `devopsgroupeu.haproxy-keepalived` — configures HA load balancing + floating IP VIP (runs on `proxy_hosts`; label `role=proxy`)
-3. `devopsgroupeu.hashicorp-vault` — installs a Raft HA Vault cluster behind the VIP (runs on `vault`; label `role=vault`)
-4. `devopsgroupeu.rke2` — installs RKE2 servers then agents (runs on `server_nodes` / `agent_nodes`; labels `role=control-plane` / `role=worker`)
-
-See [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for the full multi-play pipeline and dynamic inventory setup.
+See [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for the inventory hand-off details.
 
 ## Contributing
 

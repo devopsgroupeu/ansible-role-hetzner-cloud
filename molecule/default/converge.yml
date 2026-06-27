@@ -25,15 +25,15 @@
 
     # Representative resource vars to exercise validate.yml + argument_specs
     hcloud_ssh_keys:
-      - name: openprime
+      - name: demo
         public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKeyForCIValidationOnly test@ci"
 
     hcloud_networks:
-      - name: openprime-net
+      - name: demo-net
         ip_range: "10.0.0.0/16"
 
     hcloud_subnetworks:
-      - network: openprime-net
+      - network: demo-net
         type: cloud
         network_zone: eu-central
         ip_range: "10.0.1.0/24"
@@ -56,22 +56,22 @@
         type: spread
 
     hcloud_servers:
-      - name: openprime-cp-01
+      - name: demo-cp-01
         server_type: cx22
         image: debian-12
         location: nbg1
         ssh_keys:
-          - openprime
+          - demo
         firewalls:
           - k8s-cp-fw
         placement_group: cp-spread
         labels:
           role: control-plane
-          cluster: openprime
+          cluster: demo
 
     hcloud_server_networks:
-      - server: openprime-cp-01
-        network: openprime-net
+      - server: demo-cp-01
+        network: demo-net
         ip: "10.0.1.11"
 
     hcloud_floating_ips:
@@ -97,9 +97,9 @@
       - name: api-lb
         load_balancer_type: lb11
         location: nbg1
-        network: openprime-net
+        network: demo-net
         labels:
-          cluster: openprime
+          cluster: demo
         services:
           - protocol: tcp
             listen_port: 6443

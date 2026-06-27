@@ -22,7 +22,6 @@ galaxy_info:
     - infrastructure
     - networking
     - kubernetes
-    - rke2
     - iac
     - bootstrap
 

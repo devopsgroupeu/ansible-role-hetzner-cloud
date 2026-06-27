@@ -77,7 +77,7 @@ hcloud_ssh_keys:
 
 ## Networks (`hcloud_networks`)
 
-Private RFC1918 networks for node-to-node traffic and RKE2 CNI.
+Private RFC1918 networks for node-to-node traffic and pod/CNI networking.
 
 ```yaml
 hcloud_networks:
@@ -283,7 +283,7 @@ hcloud_primary_ips:
 
 ## Floating IPs (`hcloud_floating_ips`)
 
-Location-scoped floating IPs, e.g. the HA VIP managed by `haproxy-keepalived`.
+Location-scoped floating IPs, e.g. the HA VIP managed by an external load balancer (e.g. keepalived).
 
 ```yaml
 hcloud_floating_ips:
@@ -301,7 +301,7 @@ hcloud_floating_ips:
 | `name` | str | Yes | Floating IP name. |
 | `type` | str | Yes | IP version: `ipv4` or `ipv6`. |
 | `home_location` | str | No | Location slug to anchor the IP to. Required when `state: present` unless `server` is set. |
-| `server` | str | No | Server name to assign the floating IP to initially. `haproxy-keepalived` reassigns it during failover. |
+| `server` | str | No | Server name to assign the floating IP to initially. An external load balancer reassigns it during failover. |
 | `description` | str | No | Human-readable description. |
 | `delete_protection` | bool | No | Prevent accidental deletion. |
 | `labels` | dict | No | Arbitrary key/value labels. |
@@ -339,7 +339,7 @@ hcloud_volumes:
 
 ## Load Balancers (`hcloud_load_balancers`)
 
-Managed load balancers — an alternative to self-hosted HAProxy. Off by default.
+Managed load balancers — an alternative to a self-hosted load balancer. Off by default.
 
 ```yaml
 hcloud_load_balancers:

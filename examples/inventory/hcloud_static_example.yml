@@ -1,11 +1,11 @@
 # Static inventory example — matches the groups emitted by templates/hcloud_inventory.yml.j2
 # and the hcloud.yml dynamic inventory plugin (groups: map).
 #
-# Group names are consumer-owned and must match exactly what each downstream role expects:
-#   server_nodes  → devopsgroupeu.rke2 (control-plane play)
-#   agent_nodes   → devopsgroupeu.rke2 (agent play)
-#   proxy_hosts   → devopsgroupeu.haproxy-keepalived
-#   vault         → devopsgroupeu.hashicorp-vault
+# Group names are illustrative — choose whatever your downstream plays consume:
+#   server_nodes  → your control-plane play
+#   agent_nodes   → your worker play
+#   proxy_hosts   → your load-balancer play
+#   vault         → your secrets play
 #
 # Hetzner label values that produce these groups:
 #   role=control-plane  → server_nodes

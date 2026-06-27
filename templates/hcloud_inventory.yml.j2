@@ -2,11 +2,11 @@
 # Source role variable: hcloud_provisioned_servers
 # Prefer the hetzner.hcloud dynamic inventory plugin for stateless hand-off.
 #
-# Group names match the consumer roles:
-#   server_nodes  → ansible-role-rke2 (control-plane)
-#   agent_nodes   → ansible-role-rke2 (worker)
-#   proxy_hosts   → ansible-role-haproxy-keepalived
-#   vault         → ansible-role-hashicorp-vault
+# Group names match your downstream plays:
+#   server_nodes  → your control-plane play
+#   agent_nodes   → your worker play
+#   proxy_hosts   → your load-balancer play
+#   vault         → your secrets play
 
 {% set server_nodes = hcloud_provisioned_servers | default([]) | selectattr('labels', 'defined') | selectattr('labels.role', 'defined') | selectattr('labels.role', 'equalto', 'control-plane') | list %}
 {% set agent_nodes = hcloud_provisioned_servers | default([]) | selectattr('labels', 'defined') | selectattr('labels.role', 'defined') | selectattr('labels.role', 'equalto', 'worker') | list %}
