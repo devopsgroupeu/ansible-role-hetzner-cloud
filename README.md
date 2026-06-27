@@ -214,3 +214,37 @@ Config-tier order — each role depends on the one above it:
 4. `devopsgroupeu.rke2` — installs RKE2 servers then agents (runs on `server_nodes` / `agent_nodes`; labels `role=control-plane` / `role=worker`)
 
 See [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for the full multi-play pipeline and dynamic inventory setup.
+
+## Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
+
+## Code of Conduct
+
+Read our [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.
+
+## License
+
+```
+Copyright 2025 DevOpsGroup
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```
+
+---
+
+> For more information or support, please refer to the official documentation or contact us at info@devopsgroup.sk
