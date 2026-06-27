@@ -49,8 +49,8 @@ or the static template). Group names match exactly what each consumer role expec
 |---|---|---|
 | `server_nodes` | `role=control-plane` | `devopsgroupeu.rke2` (server play) |
 | `agent_nodes` | `role=worker` | `devopsgroupeu.rke2` (agent play) |
-| `proxy_hosts` | `role=proxy` | `devopsgroupeu.haproxy_keepalived` |
-| `vault` | `role=vault` | `devopsgroupeu.hashicorp_vault` |
+| `proxy_hosts` | `role=proxy` | `devopsgroupeu.haproxy-keepalived` |
+| `vault` | `role=vault` | `devopsgroupeu.hashicorp-vault` |
 
 ---
 
@@ -235,7 +235,7 @@ hcloud_floating_ips:
         options:
           - check
   roles:
-    - devopsgroupeu.haproxy_keepalived
+    - devopsgroupeu.haproxy-keepalived
 ```
 
 Keepalived flips the floating IP between `proxy-01` and `proxy-02` on failure,
@@ -282,7 +282,7 @@ hcloud_servers:
     vault_api_addr: "https://{{ vip_address }}:8200"
     vault_raft_peers: "{{ groups['vault'] }}"
   roles:
-    - devopsgroupeu.hashicorp_vault
+    - devopsgroupeu.hashicorp-vault
 ```
 
 See the `ansible-role-hashicorp-vault` README for the full variable contract
@@ -339,20 +339,20 @@ including TLS, unseal, and ESO integration.
         type: ipv4
         home_location: fsn1
   roles:
-    - devopsgroupeu.hetzner_cloud
+    - devopsgroupeu.hetzner-cloud
 
 # Play 2: Install HAProxy + Keepalived (establishes the VIP)
 # Use -i hcloud.yml (dynamic inventory) or -i /tmp/hcloud_inventory.yml (static)
 - hosts: proxy_hosts
   roles:
-    - devopsgroupeu.haproxy_keepalived
+    - devopsgroupeu.haproxy-keepalived
 
 # Play 3: Install Vault (Raft cluster, behind the VIP)
 - hosts: vault
   vars:
     vault_version: "2.0.3"
   roles:
-    - devopsgroupeu.hashicorp_vault
+    - devopsgroupeu.hashicorp-vault
 
 # Play 4: Install RKE2 control-plane
 - hosts: server_nodes

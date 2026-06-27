@@ -48,8 +48,8 @@ flowchart TD
     end
 
     subgraph DownstreamRoles["Config-tier roles (subsequent plays)"]
-        r_haproxy["devopsgroupeu.haproxy_keepalived<br/>hosts: proxy_hosts"]
-        r_vault["devopsgroupeu.hashicorp_vault<br/>hosts: vault"]
+        r_haproxy["devopsgroupeu.haproxy-keepalived<br/>hosts: proxy_hosts"]
+        r_vault["devopsgroupeu.hashicorp-vault<br/>hosts: vault"]
         r_rke2_srv["devopsgroupeu.rke2<br/>hosts: server_nodes"]
         r_rke2_agent["devopsgroupeu.rke2<br/>hosts: agent_nodes"]
     end
@@ -84,8 +84,8 @@ consumer roles' expected names:
 |---|---|---|
 | `role=control-plane` | `server_nodes` | `devopsgroupeu.rke2` |
 | `role=worker` | `agent_nodes` | `devopsgroupeu.rke2` |
-| `role=proxy` | `proxy_hosts` | `devopsgroupeu.haproxy_keepalived` |
-| `role=vault` | `vault` | `devopsgroupeu.hashicorp_vault` |
+| `role=proxy` | `proxy_hosts` | `devopsgroupeu.haproxy-keepalived` |
+| `role=vault` | `vault` | `devopsgroupeu.hashicorp-vault` |
 
 The dynamic inventory plugin (`hcloud.yml`) uses a `groups:` map to produce
 these names. The static template (`templates/hcloud_inventory.yml.j2`) uses

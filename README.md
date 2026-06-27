@@ -1,6 +1,6 @@
 # ansible-role-hetzner-cloud
 
-[![Ansible Galaxy](https://img.shields.io/badge/Ansible%20Galaxy-devopsgroupeu.hetzner_cloud-blue?logo=ansible)](https://galaxy.ansible.com/ui/standalone/roles/devopsgroupeu/hetzner_cloud/)
+[![Ansible Galaxy](https://img.shields.io/badge/Ansible%20Galaxy-devopsgroupeu.hetzner--cloud-blue?logo=ansible)](https://galaxy.ansible.com/ui/standalone/roles/devopsgroupeu/hetzner-cloud/)
 
 **Namespace:** `devopsgroupeu` | **Role:** `hetzner_cloud` | **License:** Apache-2.0
 
@@ -31,7 +31,7 @@ Pull this role into your playbook project via a `requirements.yml` git source:
 
 ```yaml
 roles:
-  - name: devopsgroupeu.hetzner_cloud
+  - name: devopsgroupeu.hetzner-cloud
     src: https://github.com/devopsgroupeu/ansible-role-hetzner-cloud
     scm: git
     version: "v1.0.0"
@@ -44,7 +44,7 @@ ansible-galaxy install -r requirements.yml
 Once published to Ansible Galaxy, the role can also be installed by name:
 
 ```bash
-ansible-galaxy role install devopsgroupeu.hetzner_cloud
+ansible-galaxy role install devopsgroupeu.hetzner-cloud
 ```
 
 ---
@@ -208,9 +208,9 @@ The `molecule/live/` scenario creates real Hetzner Cloud resources and requires 
 
 Config-tier order — each role depends on the one above it:
 
-1. `devopsgroupeu.hetzner_cloud` — provisions Hetzner Cloud infrastructure (this role, runs on `localhost`)
-2. `devopsgroupeu.haproxy_keepalived` — configures HA load balancing + floating IP VIP (runs on `proxy_hosts`; label `role=proxy`)
-3. `devopsgroupeu.hashicorp_vault` — installs a Raft HA Vault cluster behind the VIP (runs on `vault`; label `role=vault`)
+1. `devopsgroupeu.hetzner-cloud` — provisions Hetzner Cloud infrastructure (this role, runs on `localhost`)
+2. `devopsgroupeu.haproxy-keepalived` — configures HA load balancing + floating IP VIP (runs on `proxy_hosts`; label `role=proxy`)
+3. `devopsgroupeu.hashicorp-vault` — installs a Raft HA Vault cluster behind the VIP (runs on `vault`; label `role=vault`)
 4. `devopsgroupeu.rke2` — installs RKE2 servers then agents (runs on `server_nodes` / `agent_nodes`; labels `role=control-plane` / `role=worker`)
 
 See [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for the full multi-play pipeline and dynamic inventory setup.

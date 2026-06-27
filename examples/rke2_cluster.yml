@@ -174,7 +174,7 @@
           cluster: prod
 
   roles:
-    - devopsgroupeu.hetzner_cloud
+    - devopsgroupeu.hetzner-cloud
 
 # Second stage: configure the provisioned hosts via the dynamic (or static) inventory.
 # This role groups hosts as server_nodes / agent_nodes / proxy_hosts / vault — the
@@ -183,10 +183,10 @@
 # example") for the full end-to-end playbook.
 # - hosts: proxy_hosts
 #   roles:
-#     - devopsgroupeu.haproxy_keepalived
+#     - devopsgroupeu.haproxy-keepalived
 # - hosts: vault
 #   roles:
-#     - devopsgroupeu.hashicorp_vault
+#     - devopsgroupeu.hashicorp-vault
 # - hosts: server_nodes
 #   roles:
 #     - devopsgroupeu.rke2

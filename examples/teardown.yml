@@ -100,4 +100,4 @@
         state: absent
 
   roles:
-    - devopsgroupeu.hetzner_cloud
+    - devopsgroupeu.hetzner-cloud
