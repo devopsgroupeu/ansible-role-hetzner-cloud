@@ -23,6 +23,9 @@ __pycache__/
 # Molecule
 .molecule/
 
+# Logs
+*.log
+
 # Secrets — never commit tokens or Ansible Vault files
 *.vault
 vault.yml
@@ -33,6 +36,3 @@ vault.yml
 # Hetzner Cloud integration credentials (gitignored like sibling roles)
 test-hetzner/
 **/cloud-config-hcloud.ini
-
-# Logs
-*.log
