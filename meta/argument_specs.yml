@@ -252,7 +252,49 @@ argument_specs:
             elements: dict
             required: false
             default: []
-            description: List of firewall rule dicts.
+            description: >
+              List of firewall rule dicts, passed through to
+              hetzner.hcloud.firewall. Rules are managed declaratively.
+            options:
+              direction:
+                type: str
+                required: true
+                choices:
+                  - in
+                  - out
+                description: Traffic direction the rule applies to.
+              protocol:
+                type: str
+                required: true
+                choices:
+                  - tcp
+                  - udp
+                  - icmp
+                  - esp
+                  - gre
+                description: Protocol the rule matches.
+              port:
+                type: str
+                required: false
+                description: >
+                  Port or range (e.g. "443" or "1024-5000"). Required for
+                  tcp/udp protocols; must be omitted for icmp/esp/gre.
+              source_ips:
+                type: list
+                elements: str
+                required: false
+                description: >
+                  CIDR blocks the rule matches as sources (for direction=in).
+              destination_ips:
+                type: list
+                elements: str
+                required: false
+                description: >
+                  CIDR blocks the rule matches as destinations (for direction=out).
+              description:
+                type: str
+                required: false
+                description: Human-readable label for this rule.
           apply_to:
             type: list
             elements: dict
@@ -660,16 +702,84 @@ argument_specs:
             required: false
             default: []
             description: >
-              List of service dicts (protocol, listen_port, destination_port).
-              Each becomes a hetzner.hcloud.load_balancer_service task.
+              List of service dicts. Each becomes a
+              hetzner.hcloud.load_balancer_service task.
+            options:
+              protocol:
+                type: str
+                required: true
+                choices:
+                  - tcp
+                  - http
+                  - https
+                description: Service protocol.
+              listen_port:
+                type: int
+                required: true
+                description: Port the load balancer listens on.
+              destination_port:
+                type: int
+                required: false
+                description: >
+                  Port traffic is forwarded to on targets. Defaults to
+                  listen_port when omitted.
+              proxyprotocol:
+                type: bool
+                required: false
+                description: Whether to enable PROXY protocol to targets.
+              state:
+                type: str
+                required: false
+                choices:
+                  - present
+                  - absent
+                description: >
+                  Per-service state override. Defaults to the load balancer's
+                  state, then hcloud_state.
           targets:
             type: list
             elements: dict
             required: false
             default: []
             description: >
-              List of target dicts (type, label_selector/server, use_private_ip).
-              Each becomes a hetzner.hcloud.load_balancer_target task.
+              List of target dicts. Each becomes a
+              hetzner.hcloud.load_balancer_target task.
+            options:
+              type:
+                type: str
+                required: true
+                choices:
+                  - server
+                  - label_selector
+                  - ip
+                description: Target selection method.
+              server:
+                type: str
+                required: false
+                description: Server name (when type=server).
+              label_selector:
+                type: str
+                required: false
+                description: Label selector string (when type=label_selector).
+              ip:
+                type: str
+                required: false
+                description: IP address (when type=ip).
+              use_private_ip:
+                type: bool
+                required: false
+                description: >
+                  Route to targets over the attached private network instead of
+                  their public IP.
+              state:
+                type: str
+                required: false
+                choices:
+                  - present
+                  - absent
+                description: >
+                  Per-target state override. Defaults to the load balancer's
+                  state, then hcloud_state.
           state:
             type: str
             required: false

@@ -1,0 +1,49 @@
+---
+# =============================================================================
+# converge.yml — teardown-gate negative test (offline, NO Hetzner API)
+#
+# Drives the role with hcloud_state: absent and hcloud_allow_teardown: false.
+# validate.yml MUST abort at the "Refuse teardown unless explicitly allowed"
+# assert. We wrap the role include in block/rescue: the rescue records that the
+# gate fired; if the role instead completes, we record failure. A final assert
+# fails the play unless the gate fired — proving the safety guard works.
+#
+# hcloud_provision: false keeps this fully offline (no HCLOUD_TOKEN, no API).
+# =============================================================================
+
+- name: Teardown-gate negative test (gate MUST abort the run)
+  hosts: all
+  gather_facts: false
+
+  vars:
+    # OFFLINE GATE — no API calls in this scenario
+    hcloud_provision: false
+    # Destructive intent without the explicit opt-in flag → must be refused
+    hcloud_state: absent
+    hcloud_allow_teardown: false
+
+  tasks:
+    - name: Run the role expecting the teardown gate to abort it
+      block:
+        - name: Include hetzner-cloud role (expected to ABORT at the gate)
+          ansible.builtin.include_role:
+            name: ansible-role-hetzner-cloud
+
+        - name: Role completed without aborting (UNEXPECTED — gate did not fire)
+          ansible.builtin.set_fact:
+            teardown_gate_fired: false
+      rescue:
+        - name: Record that the teardown gate aborted the run as expected
+          ansible.builtin.set_fact:
+            teardown_gate_fired: true
+
+    - name: Assert the teardown gate fired (role refused the destructive run)
+      ansible.builtin.assert:
+        that:
+          - teardown_gate_fired | bool
+        fail_msg: >-
+          SAFETY REGRESSION: the role did NOT abort despite hcloud_state=absent
+          and hcloud_allow_teardown=false. The teardown safety gate is broken.
+        success_msg: >-
+          Teardown gate fired as expected — destructive run was correctly
+          refused without the explicit hcloud_allow_teardown=true opt-in.

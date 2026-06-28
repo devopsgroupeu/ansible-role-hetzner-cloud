@@ -38,8 +38,3 @@ galaxy_info:
         - "9"
 
 dependencies: []
-
-# Advisory: consumers must install this collection via requirements.yml.
-# The load-bearing declaration is requirements.yml, not here.
-collections:
-  - hetzner.hcloud
