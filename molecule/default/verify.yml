@@ -109,3 +109,64 @@
           inventory template rendered to {{ hcloud_inventory_path }} with
           consumer group keys (server_nodes, agent_nodes, proxy_hosts, vault).
           No HCLOUD_TOKEN was required and no Hetzner resources were created.
+
+# =============================================================================
+# Second play: exercise the POPULATED branches of hcloud_inventory.yml.j2.
+# The offline converge renders empty groups (hcloud_provisioned_servers=[]),
+# so the per-host loops are never covered. Here we stub the fact with fake
+# servers and render the template directly (still fully offline — no API).
+# The first play's include_role set hcloud_provisioned_servers=[] as a host
+# fact, so we must override it with set_fact (a later set_fact wins over an
+# earlier one; play vars would not — host facts outrank them).
+# =============================================================================
+- name: Verify populated inventory render (offline, stubbed servers)
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    - name: Stub provisioned servers (overrides the empty fact from the role)
+      ansible.builtin.set_fact:
+        hcloud_provisioned_servers:
+          - name: cp-01
+            ipv4_address: "203.0.113.10"
+            labels:
+              role: control-plane
+            private_networks_info:
+              - ip: "10.0.1.11"
+          - name: worker-01
+            ipv4_address: "203.0.113.20"
+            labels:
+              role: worker
+            private_networks_info:
+              - ip: "10.0.1.21"
+
+    - name: Render inventory template with stubbed provisioned servers
+      ansible.builtin.template:
+        src: "{{ lookup('ansible.builtin.env', 'MOLECULE_PROJECT_DIRECTORY') }}/templates/hcloud_inventory.yml.j2"
+        dest: /tmp/hcloud_inventory_populated.yml
+        mode: "0640"
+
+    - name: Read the populated inventory back as structured YAML
+      ansible.builtin.slurp:
+        src: /tmp/hcloud_inventory_populated.yml
+      register: populated_inv
+
+    - name: Parse rendered inventory
+      ansible.builtin.set_fact:
+        populated_parsed: "{{ populated_inv.content | b64decode | from_yaml }}"
+
+    - name: Assert populated groups place servers by their role label
+      ansible.builtin.assert:
+        that:
+          - populated_parsed.all.children.server_nodes.hosts['cp-01'].ansible_host == '203.0.113.10'
+          - populated_parsed.all.children.server_nodes.hosts['cp-01'].hcloud_private_ip == '10.0.1.11'
+          - populated_parsed.all.children.agent_nodes.hosts['worker-01'].ansible_host == '203.0.113.20'
+          - populated_parsed.all.children.agent_nodes.hosts['worker-01'].hcloud_private_ip == '10.0.1.21'
+          - "'worker-01' not in populated_parsed.all.children.server_nodes.hosts"
+          - "'cp-01' not in populated_parsed.all.children.agent_nodes.hosts"
+        fail_msg: >-
+          Populated inventory render is incorrect. Rendered content:
+          {{ populated_inv.content | b64decode }}
+        success_msg: >-
+          Populated inventory render correct: cp-01 in server_nodes,
+          worker-01 in agent_nodes, with public + private IPs.

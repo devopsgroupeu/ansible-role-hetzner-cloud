@@ -199,6 +199,12 @@ molecule test -s default
 
 `check_mode` is **not** a substitute for the offline gate — `hcloud.*` modules authenticate and query live state even under `--check`.
 
+The `molecule/teardown-gate/` scenario is also fully offline (no `HCLOUD_TOKEN`). It proves the destructive-action safety gate fires: with `hcloud_state: absent` and `hcloud_allow_teardown: false`, the role must abort before any API call.
+
+```bash
+molecule test -s teardown-gate
+```
+
 The `molecule/live/` scenario creates real Hetzner Cloud resources and requires `HCLOUD_TOKEN`. It is **not** part of default CI — see [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) for usage.
 
 ---

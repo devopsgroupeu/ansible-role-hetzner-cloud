@@ -25,10 +25,14 @@
 # ── Resource provisioning block ───────────────────────────────────────────────
 # All hetzner.hcloud.* module calls live inside this block.
 # module_defaults passes the API token once, centrally (group/hetzner.hcloud.all),
-# so it is not repeated in every task file. no_log suppresses token from output.
+# so it is not repeated in every task file. The token is redacted automatically
+# because the hetzner.hcloud modules declare api_token as no_log. user_data, the
+# only other secret-bearing field, is masked by the task-level no_log in
+# servers.yml. We deliberately do NOT set a block-wide no_log so that normal,
+# non-secret task errors stay visible for debugging (set hcloud_no_log=false to
+# unmask user_data when needed).
 - name: Provision Hetzner Cloud resources
   when: hcloud_provision | bool
-  no_log: "{{ hcloud_no_log | default(true) }}"
   module_defaults:
     group/hetzner.hcloud.all:
       api_token: "{{ hcloud_api_token }}"

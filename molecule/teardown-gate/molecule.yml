@@ -1,0 +1,58 @@
+---
+# =============================================================================
+# molecule/teardown-gate/molecule.yml — offline teardown-gate negative test
+#
+# Proves the destructive-action safety gate in validate.yml FIRES: with a
+# resource targeting state=absent and hcloud_allow_teardown=false, the role
+# must abort. This is the most dangerous code path; a silent regression here
+# would mean accidental mass deletion.
+#
+# Fully offline: hcloud_provision: false (no HCLOUD_TOKEN, no API call). The
+# teardown gate is intentionally NOT guarded by hcloud_provision, so it still
+# fires offline. Only the NEGATIVE direction is tested here — the positive
+# (allow_teardown=true) direction would proceed to the live API.
+#
+# Idempotence is omitted: this scenario deliberately drives an abort path.
+# =============================================================================
+
+dependency:
+  name: galaxy
+  options:
+    requirements-file: requirements.yml
+
+driver:
+  name: docker
+
+platforms:
+  - name: hcloud-teardown-gate
+    image: "${MOLECULE_IMAGE:-geerlingguy/docker-debian12-ansible:latest}"
+    pre_build_image: true
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    command: ""
+
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/.."
+    ANSIBLE_REMOTE_TMP: /tmp
+  inventory:
+    hosts:
+      all:
+        vars:
+          ansible_user: root
+
+verifier:
+  name: ansible
+
+scenario:
+  test_sequence:
+    - dependency
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - destroy
