@@ -8,8 +8,9 @@
 #         (both enforced in main.yml)
 #
 # no_log is set here because user_data may contain join tokens or secrets.
-# The module_defaults block in main.yml already carries no_log on the block,
-# but it is restated here explicitly for auditability.
+# This is the only task-level no_log needed for a non-token secret: the API
+# token itself is redacted by the module (api_token is declared no_log), so
+# main.yml no longer wraps the whole block in no_log.
 # =============================================================================
 
 - name: Manage servers
@@ -32,4 +33,4 @@
   loop_control:
     label: "{{ item.name }} ({{ item.state | default(hcloud_state) }})"
   register: hcloud_server_results
-  no_log: "{{ hcloud_no_log | default(true) }}"
+  no_log: "{{ hcloud_no_log }}"

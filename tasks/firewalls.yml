@@ -25,6 +25,9 @@
     label: "{{ item.name }} ({{ item.state | default(hcloud_state) }})"
   register: hcloud_firewall_results
 
+# Phase 2 is skipped for absent firewalls: deleting the firewall in phase 1
+# already removes its resource bindings, so unbinding from a now-deleted
+# firewall would fail with "not found".
 - name: Apply firewalls to resources via label selectors
   hetzner.hcloud.firewall_resource:
     firewall: "{{ item.name }}"
@@ -38,4 +41,5 @@
   loop_control:
     label: "{{ item.name }} label selectors"
   when: >-
-    (item.apply_to | default([]) | selectattr('label_selector', 'defined') | list | length) > 0
+    (item.state | default(hcloud_state)) != 'absent'
+    and (item.apply_to | default([]) | selectattr('label_selector', 'defined') | list | length) > 0
