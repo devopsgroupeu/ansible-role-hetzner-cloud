@@ -23,7 +23,7 @@
         that:
           - server_info.hcloud_server_info | length == 1
           - server_info.hcloud_server_info[0].status == "running"
-          - server_info.hcloud_server_info[0].server_type.name == "cx22"
+          - server_info.hcloud_server_info[0].server_type.name == "cx23"
         fail_msg: "molecule-live-server was not found or is not running."
         success_msg: "molecule-live-server exists and is running."
 

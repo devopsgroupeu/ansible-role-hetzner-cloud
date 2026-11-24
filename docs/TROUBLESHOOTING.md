@@ -106,15 +106,15 @@ loop_control:
 
 ### Server already exists with different attributes
 
-**Symptom:** Attempting to change `server_type`, `image`, or `location` on an existing server causes a module error.
+**Symptom:** Changing `server_type`, `image`, or `location` on an existing server has no effect, or a resize warns `You can not upgrade a running instance`.
 
-**Cause:** These attributes are immutable after server creation. The `hcloud.server` module does not silently recreate servers when immutable attributes change.
+**Cause:** `image` and `location` are create-time only; the `hetzner.hcloud.server` module never recreates a server. A `server_type` change needs the server powered off.
 
 **Fix:**
 
-- To resize: use `force: true` or `force_upgrade: true` (requires a server power-off).
-- To rebuild with a new image: set `state: rebuild` in the task (advanced use case).
-- To change location: destroy and recreate (set `state: absent` then `state: present`).
+- To resize: change `server_type` and set `force: true` on that `hcloud_servers` entry so the module may power the server off (add `upgrade_disk: true` to grow the disk too; such a server can no longer be downgraded).
+- To rebuild with a new image: not wrapped by this role (per-server `state` is only `present` or `absent`); call `hetzner.hcloud.server` with `state: rebuild` directly.
+- To change location: destroy and recreate (set `state: absent` with `hcloud_allow_teardown: true`, then `state: present`).
 
 ### SSH keys not appearing on an existing server
 

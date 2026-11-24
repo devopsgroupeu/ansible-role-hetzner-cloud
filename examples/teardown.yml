@@ -51,19 +51,19 @@
 
     hcloud_servers:
       - name: cp-01
-        server_type: cx32
+        server_type: cx33
         state: absent
       - name: cp-02
-        server_type: cx32
+        server_type: cx33
         state: absent
       - name: cp-03
-        server_type: cx32
+        server_type: cx33
         state: absent
       - name: wk-01
-        server_type: cx42
+        server_type: cx43
         state: absent
       - name: wk-02
-        server_type: cx42
+        server_type: cx43
         state: absent
 
     hcloud_floating_ips:

@@ -40,7 +40,7 @@ roles:
   - name: devopsgroupeu.hetzner-cloud
     src: https://github.com/devopsgroupeu/ansible-role-hetzner-cloud
     scm: git
-    version: "v1.0.0"
+    version: "v1.1.0"   # use the latest tag
 ```
 
 ```bash
@@ -147,6 +147,8 @@ All tunables are prefixed `hcloud_*`. Full documented defaults are in [`defaults
 
 Full per-item sub-key documentation is in [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md).
 
+Out of scope (use the `hetzner.hcloud` modules directly): reverse DNS (`rdns`), network routes (`route`), volume detach (`volume_attachment`), server power states and rebuilds (`server` with `state: started|stopped|rebuild`).
+
 ---
 
 ## Teardown safety
@@ -168,18 +170,19 @@ The role deletes absent resources in reverse dependency order (load balancers, v
 After provisioning, use the `hetzner.hcloud` inventory plugin to automatically discover hosts by label. No static file to maintain:
 
 ```yaml
-# hcloud.yml (inventory plugin config — name must end in .hcloud.yml)
-plugin: hetzner.hcloud.hcloud
-api_token: "{{ lookup('env', 'HCLOUD_TOKEN') }}"
+# hcloud.yml (inventory plugin config - the name must end in hcloud.yml)
+plugin: hetzner.hcloud.hcloud        # token from HCLOUD_TOKEN
+label_selector: managed-by=ansible-hetzner-cloud
 network: prod-net
+connect_with: private_ipv4           # ansible_host = private IP on 'network'
 groups:
-  server_nodes: "labels.role == 'control-plane'"
-  agent_nodes: "labels.role == 'worker'"
-  proxy_hosts: "labels.role == 'proxy'"
-  vault: "labels.role == 'vault'"
-compose:
-  ansible_host: private_ipv4_address
+  server_nodes: "hcloud_labels.role | default('') == 'control-plane'"
+  agent_nodes: "hcloud_labels.role | default('') == 'worker'"
+  proxy_hosts: "hcloud_labels.role | default('') == 'proxy'"
+  vault: "hcloud_labels.role | default('') == 'vault'"
 ```
+
+The plugin prefixes every Hetzner field with `hcloud_`, so the labels are `hcloud_labels` (a bare `labels.role` silently matches nothing). This snippet ships as [`examples/inventory/hcloud.yml`](examples/inventory/hcloud.yml).
 
 Label your servers with the `role` key in `hcloud_servers[].labels` using values `control-plane`, `worker`, `proxy`, or `vault`. The `groups:` map emits group names your downstream plays can target (`server_nodes`, `agent_nodes`, `proxy_hosts`, `vault`).
 
@@ -212,6 +215,7 @@ The `molecule/live/` scenario creates real Hetzner Cloud resources and requires 
 
 - [`examples/ha_cluster.yml`](examples/ha_cluster.yml) — full HA Kubernetes cluster topology (3 control-plane + 2 workers + private network + firewalls + floating IP)
 - [`examples/teardown.yml`](examples/teardown.yml) - safe teardown walkthrough (single pass, reverse dependency order handled by the role)
+- [`examples/inventory/hcloud.yml`](examples/inventory/hcloud.yml) - dynamic inventory plugin config that groups the role's servers by `role` label
 
 ---
 

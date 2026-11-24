@@ -57,7 +57,7 @@
 
     hcloud_servers:
       - name: demo-cp-01
-        server_type: cx22
+        server_type: cx23
         image: debian-12
         location: nbg1
         ssh_keys:

@@ -12,7 +12,8 @@
 # no effect. automount only applies when a server is attached.
 #
 # v5+ detach change: omitting 'server' no longer auto-detaches a volume.
-# Use hetzner.hcloud.volume_attachment with state=absent to detach explicitly.
+# Use hetzner.hcloud.volume_attachment with state=absent to detach explicitly
+# (not wrapped by this role).
 #
 # The present phase includes this file twice (_hcloud_volume_pass): 'pre'
 # before the servers creates volumes without 'server', so hcloud_servers[]

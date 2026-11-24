@@ -15,7 +15,7 @@
 #   export HCLOUD_TOKEN="your-throwaway-project-token"
 #   molecule test -s live
 #
-# Resources created: cx22 server in nbg1 (cheapest type / EU location).
+# Resources created: cx23 server in nbg1 (cheapest type / EU location).
 # Resources are always destroyed at the end of `molecule test` (even on failure).
 # Do NOT run `molecule converge -s live` without `molecule destroy -s live` after.
 # =============================================================================

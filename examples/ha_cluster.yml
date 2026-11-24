@@ -85,7 +85,7 @@
 
     hcloud_servers:
       - name: cp-01
-        server_type: cx32
+        server_type: cx33
         image: debian-12
         location: fsn1
         ssh_keys:
@@ -98,7 +98,7 @@
           role: control-plane
           cluster: prod
       - name: cp-02
-        server_type: cx32
+        server_type: cx33
         image: debian-12
         location: fsn1
         ssh_keys:
@@ -111,7 +111,7 @@
           role: control-plane
           cluster: prod
       - name: cp-03
-        server_type: cx32
+        server_type: cx33
         image: debian-12
         location: fsn1
         ssh_keys:
@@ -124,7 +124,7 @@
           role: control-plane
           cluster: prod
       - name: wk-01
-        server_type: cx42
+        server_type: cx43
         image: debian-12
         location: fsn1
         ssh_keys:
@@ -136,7 +136,7 @@
           role: worker
           cluster: prod
       - name: wk-02
-        server_type: cx42
+        server_type: cx43
         image: debian-12
         location: fsn1
         ssh_keys:

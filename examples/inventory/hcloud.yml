@@ -1,0 +1,24 @@
+---
+# Dynamic inventory for servers created by this role (hetzner.hcloud.hcloud).
+# The file name must end in hcloud.yml. The API token is read from the
+# HCLOUD_TOKEN environment variable.
+#
+#   ansible-inventory -i examples/inventory/hcloud.yml --graph
+#
+# The plugin prefixes every Hetzner field with 'hcloud_' (hostvars_prefix),
+# so labels are 'hcloud_labels' and the private IP on 'network' is
+# 'hcloud_private_ipv4'. Group names match templates/hcloud_inventory.yml.j2.
+plugin: hetzner.hcloud.hcloud
+
+# Only servers managed by this role and attached to this network.
+label_selector: managed-by=ansible-hetzner-cloud
+network: prod-net
+
+# SSH over the private IP on 'network' (use public_ipv4 from outside).
+connect_with: private_ipv4
+
+groups:
+  server_nodes: "hcloud_labels.role | default('') == 'control-plane'"
+  agent_nodes: "hcloud_labels.role | default('') == 'worker'"
+  proxy_hosts: "hcloud_labels.role | default('') == 'proxy'"
+  vault: "hcloud_labels.role | default('') == 'vault'"

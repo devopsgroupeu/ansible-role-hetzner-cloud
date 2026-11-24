@@ -26,10 +26,9 @@ argument_specs:
       hcloud_api_token:
         type: str
         required: false
-        default: ""
         description: >
-          Hetzner Cloud API token. Resolved from the HCLOUD_TOKEN environment
-          variable when not explicitly set. Source from HashiCorp Vault or
+          Hetzner Cloud API token. Defaults to the HCLOUD_TOKEN environment
+          variable (see defaults/main.yml). Source from HashiCorp Vault or
           Ansible Vault at consume time. Never hardcode in the repository.
 
       # ── Global behaviour ──────────────────────────────────────────────────
@@ -225,7 +224,9 @@ argument_specs:
               - cloud
               - server
               - vswitch
-            description: Subnet type.
+            description: >
+              Subnet type. 'server' is deprecated by Hetzner (removed
+              2027-04-15); use 'cloud', which is functionally equivalent.
           network_zone:
             type: str
             required: true
@@ -405,7 +406,7 @@ argument_specs:
             type: str
             required: false
             description: >
-              Hetzner Cloud server type slug (e.g. cx22, cx32, cx42).
+              Hetzner Cloud server type slug (e.g. cx23, cx33, cx43).
               Required when state=present.
           image:
             type: str
@@ -422,7 +423,8 @@ argument_specs:
             required: false
             description: >
               Location slug (e.g. fsn1, nbg1). Defaults to hcloud_default_location.
-              Use location, not the deprecated datacenter param.
+              Placement is by location only (Hetzner removed 'datacenter' on
+              2026-07-01).
           ssh_keys:
             type: list
             elements: str
@@ -522,7 +524,8 @@ argument_specs:
             required: false
             default: {}
             description: >
-              Arbitrary labels. The managed-by label is always merged on top.
+              Arbitrary labels, merged over the managed-by label (a user label
+              with the same key overrides it).
               Use role/cluster labels for dynamic inventory grouping.
           state:
             type: str
@@ -593,9 +596,8 @@ argument_specs:
             required: false
             description: >
               Location slug for placement (e.g. fsn1, nbg1). Defaults to
-              hcloud_default_location unless 'server' is set. Use location,
-              not the deprecated datacenter param (scheduled for removal after
-              2026-07-01).
+              hcloud_default_location unless 'server' is set. Placement is by
+              location only (Hetzner removed 'datacenter' on 2026-07-01).
           server:
             type: str
             required: false

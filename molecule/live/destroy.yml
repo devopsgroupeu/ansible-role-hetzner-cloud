@@ -24,7 +24,7 @@
 
     hcloud_servers:
       - name: molecule-live-server
-        server_type: cx22
+        server_type: cx23
         state: absent
 
     hcloud_subnetworks:

@@ -372,3 +372,52 @@
           Servers: {{ mock_state.servers }}
           Outputs: {{ mock_case_runs.results | map(attribute='stdout_lines') | map('last') | list }}
         success_msg: "private_networks, ipv4 Primary IP and protection applied; second run unchanged"
+
+    # The shipped dynamic inventory snippet, run through the real
+    # hetzner.hcloud.hcloud plugin (it honours HCLOUD_ENDPOINT too).
+    - name: Seed servers for the dynamic inventory snippet
+      ansible.builtin.uri:
+        url: "{{ mock_url }}/__mock/reset"
+        method: POST
+        body_format: json
+        body:
+          seed:
+            networks:
+              - id: 300
+                name: prod-net
+                ip_range: 10.0.0.0/16
+            servers:
+              - {name: cp-01, networks: [prod-net], labels: {managed-by: ansible-hetzner-cloud, role: control-plane}}
+              - {name: wk-01, networks: [prod-net], labels: {managed-by: ansible-hetzner-cloud, role: worker}}
+              - {name: db-01, networks: [prod-net], labels: {managed-by: ansible-hetzner-cloud, role: database}}
+              - {name: off-net-01, labels: {managed-by: ansible-hetzner-cloud, role: worker}}
+
+    # YAML output: the JSON output wraps plugin values as unsafe objects.
+    - name: Build the dynamic inventory from examples/inventory/hcloud.yml
+      ansible.builtin.command:
+        argv:
+          - ansible-inventory
+          - -i
+          - "{{ lookup('ansible.builtin.env', 'MOLECULE_PROJECT_DIRECTORY') }}/examples/inventory/hcloud.yml"
+          - --list
+          - --yaml
+      environment:
+        ANSIBLE_NOCOLOR: "1"
+      register: dynamic_inventory
+      changed_when: false
+
+    - name: Assert the snippet groups servers by role and connects over the private IP
+      vars:
+        groups_: "{{ (dynamic_inventory.stdout | from_yaml).all.children }}"
+        cp01: "{{ groups_.hcloud.hosts['cp-01'] }}"
+      ansible.builtin.assert:
+        that:
+          - groups_.server_nodes.hosts.keys() | list == ['cp-01']
+          - groups_.agent_nodes.hosts.keys() | list == ['wk-01']
+          - groups_.hcloud.hosts.keys() | list | sort == ['cp-01', 'db-01', 'wk-01']
+          - cp01.ansible_host == '10.0.1.10'
+          - cp01.hcloud_private_ipv4 == '10.0.1.10'
+        fail_msg: >-
+          The dynamic inventory snippet does not group or address servers as documented.
+          Inventory: {{ dynamic_inventory.stdout }}
+        success_msg: "examples/inventory/hcloud.yml groups by hcloud_labels.role and uses the private IP"

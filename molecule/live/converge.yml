@@ -3,7 +3,7 @@
 # molecule/live/converge.yml — LIVE provisioning converge
 #
 # CREATES REAL HETZNER CLOUD RESOURCES. Needs HCLOUD_TOKEN in environment.
-# Uses cheapest type (cx22) in nbg1 to minimise cost.
+# Uses cheapest type (cx23) in nbg1 to minimise cost.
 # `molecule test -s live` always destroys resources after verify.
 # =============================================================================
 
@@ -40,7 +40,7 @@
 
     hcloud_servers:
       - name: molecule-live-server
-        server_type: cx22
+        server_type: cx23
         image: debian-12
         location: nbg1
         ssh_keys:

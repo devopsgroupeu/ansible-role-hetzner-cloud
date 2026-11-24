@@ -116,7 +116,7 @@ hcloud_subnetworks:
 | Sub-key | Type | Required | Description |
 |---|---|---|---|
 | `network` | str | Yes | Parent network name. |
-| `type` | str | Yes | Subnet type: `cloud`, `server`, or `vswitch`. |
+| `type` | str | Yes | Subnet type: `cloud`, `server`, or `vswitch`. `server` is deprecated by Hetzner (removed 2027-04-15); use `cloud`, which is functionally equivalent. |
 | `network_zone` | str | Yes | Network zone (e.g. `eu-central`). |
 | `ip_range` | str | Yes | CIDR block for this subnet. |
 | `vswitch_id` | int | No | vSwitch ID (required when `type: vswitch`). |
@@ -207,7 +207,7 @@ Compute instances. SSH key, firewall, and network resources must be created befo
 ```yaml
 hcloud_servers:
   - name: cp-01
-    server_type: cx32
+    server_type: cx33
     image: debian-12
     location: fsn1
     ssh_keys:
@@ -227,9 +227,9 @@ hcloud_servers:
 | Sub-key | Type | Default | Required | Description |
 |---|---|---|---|---|
 | `name` | str | — | Yes | Server name (unique in the project). |
-| `server_type` | str | — | No | Server type slug (e.g. `cx22`, `cx32`, `cx42`). Required when `state: present`. |
+| `server_type` | str | - | No | Server type slug (e.g. `cx23`, `cx33`, `cx43`). Required when `state: present`. |
 | `image` | str | `hcloud_default_image` | No | OS image slug. |
-| `location` | str | `hcloud_default_location` | No | Location slug. Use `location`, not the deprecated `datacenter` (removal after 2026-07-01). |
+| `location` | str | `hcloud_default_location` | No | Location slug. Placement is by location only (Hetzner removed `datacenter` on 2026-07-01). |
 | `ssh_keys` | list[str] | `[]` | No | SSH key names to associate at creation time (create-time only). |
 | `firewalls` | list[str] | `[]` | No | Firewall names to apply. |
 | `placement_group` | str | — | No | Placement group name for anti-affinity scheduling. |
@@ -246,7 +246,7 @@ hcloud_servers:
 | `image_allow_deprecated` | bool | - | No | Allow creating from a deprecated image. |
 | `delete_protection` | bool | - | No | Protect from deletion. Must be set together with `rebuild_protection`. |
 | `rebuild_protection` | bool | - | No | Protect from rebuilds. Must be set together with `delete_protection`. |
-| `labels` | dict | `{}` | No | Labels. The managed-by label is always merged. Use `role`/`cluster` labels for dynamic inventory grouping. |
+| `labels` | dict | `{}` | No | Labels, merged over the managed-by label (a user label with the same key overrides it). Use `role`/`cluster` labels for dynamic inventory grouping. |
 | `state` | str | `hcloud_state` | No | Per-resource state override (`present` or `absent`). |
 
 Power states (`started`, `stopped`, `restarted`, `rebuild`) and rescue mode are not wrapped by this role; use `hetzner.hcloud.server` directly for those.
@@ -293,7 +293,7 @@ hcloud_primary_ips:
 |---|---|---|---|
 | `name` | str | Yes | Primary IP name. |
 | `type` | str | Yes | IP version: `ipv4` or `ipv6`. |
-| `location` | str | No | Location slug. Defaults to `hcloud_default_location` unless `server` is set. Use `location` not `datacenter` (deprecated, removal 2026-07-01). |
+| `location` | str | No | Location slug. Defaults to `hcloud_default_location` unless `server` is set. Placement is by location only (Hetzner removed `datacenter` on 2026-07-01). |
 | `server` | str | No | Name of an existing, powered-off server to assign the IP to. When omitted, the current assignment is left unchanged. |
 | `auto_delete` | bool | No | Delete this IP when unassigned from its server. |
 | `delete_protection` | bool | No | Prevent accidental deletion. |
@@ -350,7 +350,7 @@ hcloud_volumes:
 | `name` | str | Yes | Volume name. |
 | `size` | int | No | Volume size in GB. Required when `state: present`. |
 | `location` | str | No | Location slug. Required when `state: present` and `server` is not set. Such location-only volumes are created before the servers; volumes with `server` after them. |
-| `server` | str | No | Server name to attach this volume to. Use `volume_attachment` module for post-creation attach/detach. |
+| `server` | str | No | Server name to attach this volume to. Omitting it never detaches; use the `hetzner.hcloud.volume_attachment` module (not wrapped by this role) to detach. |
 | `format` | str | No | Filesystem to format at creation time (`ext4` or `xfs`). Applied once only. |
 | `automount` | bool | No | Automatically mount the volume on the server. |
 | `delete_protection` | bool | No | Prevent accidental deletion. |

@@ -39,6 +39,14 @@ jobs:
       - name: yamllint
         run: yamllint .
 
+      - name: No retired shared vCPU server types (Hetzner, 2026-01-01)
+        run: "! git ls-files | xargs grep -n -w -E 'cx(22|32|42|52)'"
+
+      - name: No stale statements in docs, specs and examples
+        run: >-
+          ! git grep -n -E 'scheduled 2026-07-01|assignee_type|Python 3\.10\+'
+          -- README.md docs defaults meta tasks examples
+
       - name: ansible-lint
         run: ansible-lint --profile production .
 

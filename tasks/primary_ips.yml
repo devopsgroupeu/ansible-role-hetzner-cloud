@@ -7,7 +7,7 @@
 # Gate:   called only when hcloud_primary_ips | length > 0 and hcloud_provision
 #         (both enforced in main.yml)
 #
-# Use location (not the deprecated datacenter param; removal scheduled 2026-07-01).
+# Placement is by location only (Hetzner removed 'datacenter' on 2026-07-01).
 # location defaults to hcloud_default_location unless 'server' is set, which
 # assigns the IP to that existing server (it must be powered off). Omitting
 # 'server' never unassigns an IP. Runs before servers so a server can

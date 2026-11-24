@@ -41,29 +41,32 @@ After provisioning, use the `hetzner.hcloud.hcloud` inventory plugin to
 automatically discover hosts by label. No static file to maintain; newly created
 servers matching a label selector appear automatically.
 
-Create a file named `hcloud.yml` (must end in `.hcloud.yml`) alongside your
-playbooks:
+Create a file whose name ends in `hcloud.yml` alongside your playbooks (a copy
+of [`examples/inventory/hcloud.yml`](../examples/inventory/hcloud.yml)):
 
 ```yaml
 # hcloud.yml
-plugin: hetzner.hcloud.hcloud
-api_token: "{{ lookup('env', 'HCLOUD_TOKEN') }}"
+plugin: hetzner.hcloud.hcloud   # the API token is read from HCLOUD_TOKEN
 
-# Filter to only servers on your private network (recommended for multi-tenant projects)
+# Only servers managed by this role and attached to the private network
+label_selector: managed-by=ansible-hetzner-cloud
 network: prod-net
+
+# SSH over the private IP on 'network' (sets ansible_host)
+connect_with: private_ipv4
 
 # Group hosts by label so downstream plays can target them
 groups:
-  server_nodes: "labels.role == 'control-plane'"
-  agent_nodes: "labels.role == 'worker'"
-  proxy_hosts: "labels.role == 'proxy'"
-  vault: "labels.role == 'vault'"
-
-# Use private network IPs for SSH (requires network: above)
-# hostvars_prefix defaults to 'hcloud_' since collection v5
-compose:
-  ansible_host: private_ipv4_address
+  server_nodes: "hcloud_labels.role | default('') == 'control-plane'"
+  agent_nodes: "hcloud_labels.role | default('') == 'worker'"
+  proxy_hosts: "hcloud_labels.role | default('') == 'proxy'"
+  vault: "hcloud_labels.role | default('') == 'vault'"
 ```
+
+The plugin prefixes every Hetzner field with `hcloud_` (`hostvars_prefix`), so
+labels are `hcloud_labels` and the private IP is `hcloud_private_ipv4`.
+Expressions on the unprefixed names (`labels.role`) match nothing, and the
+constructed groups do not report the error.
 
 Run with:
 ```bash

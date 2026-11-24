@@ -128,7 +128,7 @@ hcloud_placement_groups: []
 # Compute instances. Required per-item: name, server_type (when state=present).
 # hcloud_servers:
 #   - name: cp-01
-#     server_type: cx32
+#     server_type: cx33
 #     image: "{{ hcloud_default_image }}"
 #     location: "{{ hcloud_default_location }}"
 #     ssh_keys: [ops-key]
@@ -168,7 +168,7 @@ hcloud_server_networks: []
 # Required per-item: name, type (ipv4|ipv6). location defaults to
 # hcloud_default_location; set server to assign the IP to an existing,
 # powered-off server instead.
-# Use location (not the deprecated datacenter; removal scheduled 2026-07-01).
+# Placement is by location only (Hetzner removed 'datacenter' on 2026-07-01).
 # hcloud_primary_ips:
 #   - name: cp-01-ipv4
 #     type: ipv4
