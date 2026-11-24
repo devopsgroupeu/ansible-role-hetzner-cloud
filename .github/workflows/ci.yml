@@ -60,8 +60,22 @@ jobs:
           v = [c["hetzner.hcloud"]["version"] for c in json.load(sys.stdin).values() if "hetzner.hcloud" in c][0];
           print("hetzner.hcloud", v); assert int(v.split(".")[0]) < 8, v'
 
+      # Every molecule playbook, mock-api case and example. The examples use
+      # the Galaxy role name, the cases the repo directory name.
       - name: syntax-check
-        run: ansible-playbook --syntax-check molecule/default/converge.yml
+        shell: bash
+        run: |
+          roles="$(mktemp -d)"
+          ln -s "$PWD" "$roles/devopsgroupeu.hetzner-cloud"
+          ln -s "$PWD" "$roles/ansible-role-hetzner-cloud"
+          rc=0
+          for f in molecule/*/*.yml molecule/mock-api/cases/*.yml examples/*.yml; do
+            [[ "$f" == */molecule.yml ]] && continue
+            echo "::group::$f"
+            ANSIBLE_ROLES_PATH="$roles" ansible-playbook -i localhost, --syntax-check "$f" || rc=1
+            echo "::endgroup::"
+          done
+          exit "$rc"
 
   molecule:
     name: molecule / ${{ matrix.scenario }} / ${{ matrix.distro }} / ${{ matrix.ansible }}
@@ -88,6 +102,16 @@ jobs:
             distro: debian12
             ansible: "ansible-core>=2.22,<2.23"
             python: "3.13"
+          # Offline teardown gate (docker) and real module calls against the
+          # local mock API (delegated, runs on the runner): debian12 only.
+          - scenario: teardown-gate
+            distro: debian12
+            ansible: "ansible-core>=2.21,<2.22"
+            python: "3.12"
+          - scenario: mock-api
+            distro: debian12
+            ansible: "ansible-core>=2.21,<2.22"
+            python: "3.12"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -100,6 +124,9 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt "${{ matrix.ansible }}"
+
+      - name: Install collections
+        run: ansible-galaxy collection install -r requirements.yml
 
       - name: Run Molecule scenario
         shell: bash
@@ -121,7 +148,7 @@ jobs:
       - name: Fail if any required job did not succeed
         if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
         run: |
-          echo "A required CI job (lint or molecule) did not succeed."
+          echo "A required CI job (lint or a molecule scenario) did not succeed."
           exit 1
       - name: Confirm required jobs passed
-        run: echo "lint + molecule succeeded"
+        run: echo "lint + molecule (default, teardown-gate, mock-api) succeeded"

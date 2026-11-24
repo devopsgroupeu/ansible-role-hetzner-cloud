@@ -7,8 +7,8 @@
 # INCUR BILLING on your Hetzner account (throwaway project recommended).
 #
 # Intended use:
-#   - Nightly scheduled CI job (gated on $HCLOUD_TOKEN and schedule trigger)
-#   - Manual opt-in on main branch (CI manual button)
+#   - Manual CI run: the "Live" workflow (.github/workflows/live.yml), run
+#     by hand via workflow_dispatch; it needs the HCLOUD_TOKEN secret
 #   - Local developer testing against a dedicated test project
 #
 # Usage:

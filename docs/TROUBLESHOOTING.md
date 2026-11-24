@@ -180,7 +180,7 @@ Do not attempt to use `--check` mode as an offline substitute — the collection
 
 ### `molecule test -s live` requires a real token
 
-The `live` scenario creates actual Hetzner Cloud resources. It is not part of the default CI pipeline. To run it:
+The `live` scenario creates actual Hetzner Cloud resources. It is not part of the default CI pipeline; CI runs it only when started by hand (the `Live` workflow, `workflow_dispatch`, with the `HCLOUD_TOKEN` repository secret). To run it locally:
 
 ```bash
 export HCLOUD_TOKEN="your-throwaway-project-token"

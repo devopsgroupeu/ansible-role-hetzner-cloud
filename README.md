@@ -207,7 +207,15 @@ The `molecule/teardown-gate/` scenario is also fully offline (no `HCLOUD_TOKEN`)
 molecule test -s teardown-gate
 ```
 
-The `molecule/live/` scenario creates real Hetzner Cloud resources and requires `HCLOUD_TOKEN`. It is **not** part of default CI — see [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) for usage.
+The `molecule/mock-api/` scenario makes real `hetzner.hcloud` module calls against an in-memory stand-in of the Hetzner API on `127.0.0.1` (dummy token, no cloud resources) and asserts on the requests it receives: floating IP re-runs, scoped `--tags` runs, single-pass teardown, firewall bindings, server options, `--check` and the dynamic inventory snippet. It needs no Docker. Set `MOCK_HCLOUD_PORT` if port 18742 is taken.
+
+```bash
+molecule test -s mock-api
+```
+
+CI runs `default` (four distros, plus an ansible-core 2.22 leg), `teardown-gate` and `mock-api` on every pull request.
+
+The `molecule/live/` scenario creates real Hetzner Cloud resources and requires `HCLOUD_TOKEN`. It is **not** part of default CI: run it locally or by hand through the `Live` workflow (`workflow_dispatch`, needs the `HCLOUD_TOKEN` secret). See [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) for usage.
 
 ---
 
