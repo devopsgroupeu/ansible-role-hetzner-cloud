@@ -6,8 +6,9 @@
 # Tunables belong in defaults/main.yml.
 # =============================================================================
 
-# Dependency order for resource provisioning — matches tasks/main.yml include order.
-# Used for documentation and tooling; not iterated at runtime.
+# Dependency order for resource provisioning (present phase), matching the
+# tasks/main.yml include order. The absent phase runs it in reverse
+# dependency order. Used for documentation and tooling; not iterated at runtime.
 _hcloud_resource_order:
   - ssh_keys
   - networks

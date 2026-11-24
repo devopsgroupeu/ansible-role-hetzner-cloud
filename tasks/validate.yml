@@ -52,7 +52,9 @@
     (hcloud_primary_ips | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
     (hcloud_floating_ips | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
     (hcloud_volumes | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
-    (hcloud_load_balancers | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0)
+    (hcloud_load_balancers | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
+    (hcloud_load_balancers | map(attribute='services', default=[]) | flatten | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
+    (hcloud_load_balancers | map(attribute='targets', default=[]) | flatten | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0)
 
 - name: Validate required fields — SSH keys
   ansible.builtin.assert:

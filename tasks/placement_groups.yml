@@ -18,3 +18,4 @@
   loop_control:
     label: "{{ item.name }} ({{ item.state | default(hcloud_state) }})"
   register: hcloud_placement_group_results
+  when: (item.state | default(hcloud_state)) == _hcloud_phase

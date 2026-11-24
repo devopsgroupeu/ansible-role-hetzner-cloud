@@ -8,7 +8,8 @@
 #         (both enforced in main.yml)
 #
 # Both the referenced server and network must already exist.
-# Dependency order: networks → servers → server_networks (enforced by main.yml).
+# Dependency order: networks -> servers -> server_networks on create, the
+# reverse on delete (enforced by main.yml).
 # The server_network module does not support a labels parameter.
 # =============================================================================
 
@@ -23,3 +24,10 @@
   loop_control:
     label: "{{ item.server }}/{{ item.network }} ({{ item.state | default(hcloud_state) }})"
   register: hcloud_server_network_results
+  when: (item.state | default(hcloud_state)) == _hcloud_phase
+  # Detaching from a server or network that is already gone is a no-op,
+  # which keeps teardown re-runnable.
+  failed_when: >-
+    hcloud_server_network_results is failed
+    and not ((item.state | default(hcloud_state)) == 'absent'
+             and 'does not exist' in (hcloud_server_network_results.msg | default('')))

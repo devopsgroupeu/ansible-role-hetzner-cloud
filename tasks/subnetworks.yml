@@ -22,3 +22,10 @@
   loop_control:
     label: "{{ item.network }}/{{ item.ip_range }} ({{ item.state | default(hcloud_state) }})"
   register: hcloud_subnetwork_results
+  when: (item.state | default(hcloud_state)) == _hcloud_phase
+  # Deleting a subnet whose network is already gone is a no-op, which keeps
+  # teardown re-runnable.
+  failed_when: >-
+    hcloud_subnetwork_results is failed
+    and not ((item.state | default(hcloud_state)) == 'absent'
+             and 'does not exist' in (hcloud_subnetwork_results.msg | default('')))

@@ -160,7 +160,7 @@ ansible-playbook examples/teardown.yml \
   --tags servers,server_networks
 ```
 
-See [`examples/teardown.yml`](examples/teardown.yml) for the correct reverse-dependency teardown order.
+The role deletes absent resources in reverse dependency order (load balancers, volumes, floating/primary IPs, server-network attachments, servers, placement groups, firewalls, subnetworks, networks, SSH keys) after creating or updating present ones, so a full teardown works in a single, re-runnable pass. Absent firewalls are detached from their remaining resources and assigned floating IPs are unassigned before deletion. See [`examples/teardown.yml`](examples/teardown.yml).
 
 ---
 
@@ -212,7 +212,7 @@ The `molecule/live/` scenario creates real Hetzner Cloud resources and requires 
 ## Examples
 
 - [`examples/ha_cluster.yml`](examples/ha_cluster.yml) — full HA Kubernetes cluster topology (3 control-plane + 2 workers + private network + firewalls + floating IP)
-- [`examples/teardown.yml`](examples/teardown.yml) — safe teardown walkthrough with correct reverse-dependency ordering
+- [`examples/teardown.yml`](examples/teardown.yml) - safe teardown walkthrough (single pass, reverse dependency order handled by the role)
 
 ---
 

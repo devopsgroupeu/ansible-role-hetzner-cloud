@@ -47,3 +47,72 @@
         success_msg: >-
           Teardown gate fired as expected — destructive run was correctly
           refused without the explicit hcloud_allow_teardown=true opt-in.
+
+# =============================================================================
+# Second play: a present load balancer whose service or target is set to
+# state=absent is destructive too, so the gate must fire for each of them.
+# =============================================================================
+- name: Teardown-gate negative test for load balancer services and targets
+  hosts: all
+  gather_facts: false
+
+  vars:
+    hcloud_provision: false
+    hcloud_allow_teardown: false
+
+  tasks:
+    - name: Run the role with only a load balancer service set to absent
+      block:
+        - name: Include hetzner-cloud role (expected to ABORT at the gate)
+          ansible.builtin.include_role:
+            name: ansible-role-hetzner-cloud
+          vars:
+            hcloud_load_balancers:
+              - name: api-lb
+                load_balancer_type: lb11
+                location: fsn1
+                services:
+                  - protocol: tcp
+                    listen_port: 6443
+                    state: absent
+
+        - name: Role completed without aborting (UNEXPECTED - gate did not fire)
+          ansible.builtin.set_fact:
+            lb_service_gate_fired: false
+      rescue:
+        - name: Record that the gate aborted the LB service teardown
+          ansible.builtin.set_fact:
+            lb_service_gate_fired: true
+
+    - name: Run the role with only a load balancer target set to absent
+      block:
+        - name: Include hetzner-cloud role (expected to ABORT at the gate)
+          ansible.builtin.include_role:
+            name: ansible-role-hetzner-cloud
+          vars:
+            hcloud_load_balancers:
+              - name: api-lb
+                load_balancer_type: lb11
+                location: fsn1
+                targets:
+                  - type: label_selector
+                    label_selector: "role=control-plane"
+                    state: absent
+
+        - name: Role completed without aborting (UNEXPECTED - gate did not fire)
+          ansible.builtin.set_fact:
+            lb_target_gate_fired: false
+      rescue:
+        - name: Record that the gate aborted the LB target teardown
+          ansible.builtin.set_fact:
+            lb_target_gate_fired: true
+
+    - name: Assert the gate fired for LB service and target teardown
+      ansible.builtin.assert:
+        that:
+          - lb_service_gate_fired | bool
+          - lb_target_gate_fired | bool
+        fail_msg: >-
+          SAFETY REGRESSION: an LB service or target with state=absent ran
+          without hcloud_allow_teardown=true.
+        success_msg: "Teardown gate fired for LB service and target teardown"

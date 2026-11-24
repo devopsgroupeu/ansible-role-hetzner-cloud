@@ -14,7 +14,8 @@
 #     -e hcloud_allow_teardown=true \
 #     --tags servers,server_networks
 #
-#   # Full teardown (reverse dependency order):
+#   # Full teardown in one pass (the role deletes in reverse dependency
+#   # order and the run is safe to repeat):
 #   ansible-playbook examples/teardown.yml \
 #     -e hcloud_allow_teardown=true
 # =============================================================================
@@ -33,9 +34,9 @@
     hcloud_allow_teardown: false
 
     # Mirror your provisioning play for the resources you want to remove.
-    # Teardown order in tasks/main.yml is the same as creation; for a clean
-    # teardown run resources in reverse (servers before networks etc.) or use
-    # per-item state: absent with targeted --tags.
+    # Absent resources are deleted in reverse dependency order (attachments
+    # before servers, servers before firewalls, subnets before networks), so
+    # list order here does not matter.
 
     hcloud_server_networks:
       - server: cp-01

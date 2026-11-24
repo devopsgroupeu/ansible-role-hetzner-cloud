@@ -138,17 +138,21 @@ ansible-playbook teardown.yml \
 
 **Symptom:** Resources still appear in the Hetzner Cloud console after running with `state: absent`.
 
-**Cause:** Dependency order — the API refuses to delete a network that still has servers attached, or a server that has volumes attached.
+**Cause:** The resource is missing from the teardown vars, or its entry does not resolve to `state: absent` (per-item `state` overrides `hcloud_state`).
 
-**Fix:** Follow the reverse dependency order for teardown:
-1. `server_networks` (detach before deleting servers)
-2. `servers`
-3. `floating_ips`, `primary_ips`, `volumes`
-4. `subnetworks`
-5. `networks`
-6. `firewalls`, `placement_groups`, `ssh_keys`
+**Fix:** List every resource to remove with `state: absent` (or set `hcloud_state: absent`). The role runs present items first, then deletes absent items in reverse dependency order:
+1. `load_balancers` (deleting the LB removes its services, targets and network attachment)
+2. `volumes`
+3. `floating_ips` (unassigned first), `primary_ips`
+4. `server_networks` (detach before deleting servers)
+5. `servers`
+6. `placement_groups`
+7. `firewalls` (removed from remaining label selectors first)
+8. `subnetworks`
+9. `networks`
+10. `ssh_keys`
 
-The `examples/teardown.yml` demonstrates the correct ordering.
+Deleting a subnet or attachment whose parent is already gone is treated as done, so a teardown can be re-run. `examples/teardown.yml` removes everything in one pass.
 
 ---
 

@@ -33,4 +33,5 @@
   loop_control:
     label: "{{ item.name }} ({{ item.state | default(hcloud_state) }})"
   register: hcloud_server_results
+  when: (item.state | default(hcloud_state)) == _hcloud_phase
   no_log: "{{ hcloud_no_log }}"

@@ -96,3 +96,82 @@
           Requests: {{ mock_requests }}
           Output: {{ mock_case_runs.results[0].stdout_lines | default([]) | last }}
         success_msg: "--tags servers ran the server tasks only"
+
+    - name: Case - full teardown in a single pass, twice
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        case:
+          name: teardown
+          playbook: teardown.yml
+          runs: 2
+          seed:
+            ssh_keys:
+              - name: ops-key
+                public_key: ssh-ed25519 AAAAmock
+            networks:
+              - id: 300
+                name: prod-net
+                ip_range: 10.0.0.0/16
+                subnets:
+                  - type: cloud
+                    ip_range: 10.0.1.0/24
+                    network_zone: eu-central
+                    gateway: 10.0.0.1
+            firewalls:
+              - name: k8s-cp-fw
+                apply_to:
+                  - type: label_selector
+                    label_selector:
+                      selector: role=control-plane
+              - name: k8s-worker-fw
+            placement_groups:
+              - name: cp-spread
+                type: spread
+            servers:
+              - {id: 201, name: cp-01, placement_group: cp-spread, firewalls: [k8s-cp-fw], networks: [prod-net]}
+              - {id: 202, name: cp-02, placement_group: cp-spread, firewalls: [k8s-cp-fw], networks: [prod-net]}
+              - {id: 203, name: cp-03, placement_group: cp-spread, firewalls: [k8s-cp-fw], networks: [prod-net]}
+              - {id: 204, name: wk-01, firewalls: [k8s-worker-fw]}
+              - {id: 205, name: wk-02, firewalls: [k8s-worker-fw]}
+            floating_ips:
+              - {id: 7, name: ingress-vip, set: {server: 201}}
+            volumes:
+              - {id: 400, name: vault-data, size: 20, set: {server: 201}}
+            load_balancers:
+              - id: 500
+                name: api-lb
+                set:
+                  private_net:
+                    - {network: 300, ip: 10.0.1.250}
+                  services:
+                    - {protocol: tcp, listen_port: 6443, destination_port: 6443}
+
+    - name: Assert one teardown pass deletes everything in reverse order
+      vars:
+        # Request kinds in the expected teardown order; each request maps to
+        # the index of the kind it matches, and that list must be sorted.
+        markers:
+          - DELETE /load_balancers/
+          - DELETE /volumes/
+          - DELETE /floating_ips/
+          - /actions/detach_from_network
+          - DELETE /servers/
+          - DELETE /placement_groups/
+          - DELETE /firewalls/
+          - /actions/delete_subnet
+          - DELETE /networks/
+          - DELETE /ssh_keys/
+        kinds: >-
+          {% set ns = namespace(kinds=[]) %}{% for r in mock_requests %}{% for m in markers %}{% if m in r %}{% set ns.kinds = ns.kinds + [loop.index0] %}{% endif %}{% endfor %}{% endfor %}{{ ns.kinds }}
+      ansible.builtin.assert:
+        that:
+          - mock_case_runs.results | map(attribute='rc') | list == [0, 0]
+          - kinds == (kinds | sort)
+          - kinds | unique | list == range(markers | length) | list
+          - mock_requests | select('match', 'DELETE ') | list | length == 13
+          - mock_requests | select('search', '/load_balancers/500/actions/') | list | length == 0
+        fail_msg: >-
+          Teardown failed, was not re-runnable or ran out of order.
+          Request kinds: {{ kinds }}. Requests: {{ mock_requests }}
+          Outputs: {{ mock_case_runs.results | map(attribute='stdout_lines') | map('last') | list }}
+        success_msg: "Teardown ran in reverse dependency order and was re-runnable"

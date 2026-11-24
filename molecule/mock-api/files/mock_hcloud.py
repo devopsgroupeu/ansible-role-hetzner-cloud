@@ -146,7 +146,19 @@ def build(col, body):
                     outgoing_traffic=0, ingoing_traffic=0, included_traffic=0)
     for key, value in (body.get("set") or {}).items():
         base[key] = value
+    if col == "load_balancers":
+        base["services"] = [lb_service(svc) for svc in base["services"]]
     return base
+
+
+def lb_service(svc):
+    port = svc.get("destination_port") or svc.get("listen_port")
+    full = {"protocol": "tcp", "listen_port": port, "destination_port": port,
+            "proxyprotocol": False, "http": None,
+            "health_check": {"protocol": "tcp", "port": port, "interval": 15,
+                             "timeout": 10, "retries": 3, "http": None}}
+    full.update(svc)
+    return full
 
 
 def attach_network(server, network, ip, alias_ips):
@@ -195,7 +207,7 @@ def run_action(col, obj, name, body):
     elif col == "load_balancers" and name == "attach_to_network":
         obj["private_net"].append({"network": body["network"], "ip": body.get("ip") or "10.0.1.250"})
     elif col == "load_balancers" and name == "add_service":
-        obj["services"].append(body)
+        obj["services"].append(lb_service(body))
     elif col == "load_balancers" and name == "delete_service":
         obj["services"] = [s for s in obj["services"] if s.get("listen_port") != body.get("listen_port")]
     elif col == "load_balancers" and name == "add_target":
@@ -221,6 +233,8 @@ def delete(col, obj):
             if fip["server"] == obj["id"]:
                 fip["server"] = None
         return 200, {"action": action("delete_server")}
+    if col == "load_balancers":
+        return 200, {"action": action("delete_load_balancer")}
     return 204, None
 
 

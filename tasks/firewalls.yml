@@ -19,11 +19,15 @@
     name: "{{ item.name }}"
     rules: "{{ item.rules | default(omit) }}"
     labels: "{{ {hcloud_managed_label_key: hcloud_managed_label_value} | combine(item.labels | default({})) }}"
+    # Absent firewalls are removed from their remaining resources (label
+    # selectors) first; servers using them are deleted earlier in the phase.
+    force: "{{ (item.state | default(hcloud_state)) == 'absent' }}"
     state: "{{ item.state | default(hcloud_state) }}"
   loop: "{{ hcloud_firewalls }}"
   loop_control:
     label: "{{ item.name }} ({{ item.state | default(hcloud_state) }})"
   register: hcloud_firewall_results
+  when: (item.state | default(hcloud_state)) == _hcloud_phase
 
 # Phase 2 is skipped for absent firewalls: deleting the firewall in phase 1
 # already removes its resource bindings, so unbinding from a now-deleted
@@ -41,5 +45,6 @@
   loop_control:
     label: "{{ item.name }} label selectors"
   when: >-
-    (item.state | default(hcloud_state)) != 'absent'
+    (item.state | default(hcloud_state)) == _hcloud_phase
+    and (item.state | default(hcloud_state)) != 'absent'
     and (item.apply_to | default([]) | selectattr('label_selector', 'defined') | list | length) > 0

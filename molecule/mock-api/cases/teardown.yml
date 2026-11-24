@@ -1,0 +1,63 @@
+---
+# Full teardown in one pass: the examples/teardown.yml var set plus a load
+# balancer and an attached volume. Run twice by verify.yml; the second run
+# hits an empty project and must succeed too.
+- name: Case - full teardown in a single pass
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    hcloud_state: absent
+    hcloud_allow_teardown: true
+    hcloud_load_balancers:
+      - name: api-lb
+        load_balancer_type: lb11
+        location: fsn1
+        network: prod-net
+        services:
+          - protocol: tcp
+            listen_port: 6443
+            destination_port: 6443
+        targets:
+          - type: label_selector
+            label_selector: "role=control-plane"
+            use_private_ip: true
+    hcloud_volumes:
+      - name: vault-data
+    hcloud_server_networks:
+      - server: cp-01
+        network: prod-net
+      - server: cp-02
+        network: prod-net
+      - server: cp-03
+        network: prod-net
+    hcloud_servers:
+      - name: cp-01
+      - name: cp-02
+      - name: cp-03
+      - name: wk-01
+      - name: wk-02
+    hcloud_floating_ips:
+      - name: ingress-vip
+        type: ipv4
+        home_location: fsn1
+    hcloud_subnetworks:
+      - network: prod-net
+        type: cloud
+        network_zone: eu-central
+        ip_range: "10.0.1.0/24"
+    hcloud_networks:
+      - name: prod-net
+    hcloud_firewalls:
+      - name: k8s-cp-fw
+      - name: k8s-worker-fw
+    hcloud_placement_groups:
+      - name: cp-spread
+        type: spread
+    hcloud_ssh_keys:
+      - name: ops-key
+
+  roles:
+    - ansible-role-hetzner-cloud

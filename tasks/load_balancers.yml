@@ -26,3 +26,4 @@
   loop_control:
     loop_var: hcloud_lb_item
     label: "{{ hcloud_lb_item.name }} ({{ hcloud_lb_item.state | default(hcloud_state) }})"
+  when: (hcloud_lb_item.state | default(hcloud_state)) == _hcloud_phase

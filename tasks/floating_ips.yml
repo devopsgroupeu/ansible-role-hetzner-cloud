@@ -24,6 +24,7 @@
     label: "{{ item.name }}"
   register: _hcloud_fip_current
   when:
+    - (item.state | default(hcloud_state)) == _hcloud_phase
     - (item.state | default(hcloud_state)) != 'absent'
     - item.server | default('', true) | length == 0
     - not (item.unassign | default(false) | bool)
@@ -49,3 +50,4 @@
     label: "{{ item.name }} ({{ item.type }}, {{ item.state | default(hcloud_state) }})"
     index_var: _hcloud_fip_idx
   register: hcloud_floating_ip_results
+  when: (item.state | default(hcloud_state)) == _hcloud_phase

@@ -92,3 +92,8 @@ Resources are created in dependency order within a single play:
 8. Volumes
 9. Load balancers (optional, alternative to a self-hosted load balancer)
 10. Outputs: set `hcloud_provisioned_servers` fact; render static inventory
+
+Items with `state: absent` are skipped in that pass and deleted afterwards in
+reverse dependency order: load balancers, volumes, floating IPs, primary IPs,
+server-network attachments, servers, placement groups, firewalls, subnetworks,
+networks, SSH keys.
