@@ -15,3 +15,7 @@ skip_list:
 enable_list:
   - no-log-password
   - loop-var-prefix
+# The examples reference the role by its Galaxy name, which is not installed
+# when linting the repo itself.
+mock_roles:
+  - devopsgroupeu.hetzner-cloud
