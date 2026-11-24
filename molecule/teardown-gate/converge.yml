@@ -49,10 +49,11 @@
           refused without the explicit hcloud_allow_teardown=true opt-in.
 
 # =============================================================================
-# Second play: a present load balancer whose service or target is set to
-# state=absent is destructive too, so the gate must fire for each of them.
+# Second play: a present load balancer whose service or target, or a present
+# firewall whose apply_to entry is set to state=absent is destructive too, so
+# the gate must fire for each of them.
 # =============================================================================
-- name: Teardown-gate negative test for load balancer services and targets
+- name: Teardown-gate negative test for LB services, LB targets and firewall bindings
   hosts: all
   gather_facts: false
 
@@ -107,12 +108,33 @@
           ansible.builtin.set_fact:
             lb_target_gate_fired: true
 
-    - name: Assert the gate fired for LB service and target teardown
+    - name: Run the role with only a firewall binding set to absent
+      block:
+        - name: Include hetzner-cloud role (expected to ABORT at the gate)
+          ansible.builtin.include_role:
+            name: ansible-role-hetzner-cloud
+          vars:
+            hcloud_firewalls:
+              - name: k8s-cp-fw
+                apply_to:
+                  - label_selector: "role=control-plane"
+                    state: absent
+
+        - name: Role completed without aborting (UNEXPECTED - gate did not fire)
+          ansible.builtin.set_fact:
+            fw_binding_gate_fired: false
+      rescue:
+        - name: Record that the gate aborted the firewall unbinding
+          ansible.builtin.set_fact:
+            fw_binding_gate_fired: true
+
+    - name: Assert the gate fired for LB service, LB target and firewall binding teardown
       ansible.builtin.assert:
         that:
           - lb_service_gate_fired | bool
           - lb_target_gate_fired | bool
+          - fw_binding_gate_fired | bool
         fail_msg: >-
-          SAFETY REGRESSION: an LB service or target with state=absent ran
-          without hcloud_allow_teardown=true.
-        success_msg: "Teardown gate fired for LB service and target teardown"
+          SAFETY REGRESSION: an LB service/target or a firewall apply_to entry
+          with state=absent ran without hcloud_allow_teardown=true.
+        success_msg: "Teardown gate fired for LB service, LB target and firewall binding teardown"

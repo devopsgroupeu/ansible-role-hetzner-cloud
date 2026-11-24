@@ -152,6 +152,24 @@
         - hcloud
         - servers
 
+    # After the servers, so apply_to 'server' entries can bind to servers
+    # created in this run.
+    - name: Bind firewalls to resources
+      ansible.builtin.include_tasks:
+        file: firewall_bindings.yml
+        apply:
+          tags:
+            - hcloud
+            - firewalls
+      vars:
+        _hcloud_phase: present
+      when: >-
+        hcloud_firewalls | map(attribute='apply_to', default=[])
+        | flatten | length > 0
+      tags:
+        - hcloud
+        - firewalls
+
     - name: Attach servers to networks
       ansible.builtin.include_tasks:
         file: server_networks.yml

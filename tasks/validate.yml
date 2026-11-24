@@ -46,6 +46,7 @@
     (hcloud_networks | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
     (hcloud_subnetworks | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
     (hcloud_firewalls | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
+    (hcloud_firewalls | map(attribute='apply_to', default=[]) | flatten | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
     (hcloud_placement_groups | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
     (hcloud_servers | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
     (hcloud_server_networks | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or

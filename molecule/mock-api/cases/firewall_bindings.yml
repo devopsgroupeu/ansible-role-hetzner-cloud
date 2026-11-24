@@ -1,0 +1,26 @@
+---
+# Bind a firewall to a server created in the same run and to a label
+# selector, and remove an old label-selector binding set to absent.
+- name: Case - firewall bindings
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    hcloud_allow_teardown: true
+    hcloud_firewalls:
+      - name: web-fw
+        apply_to:
+          - server: web-01
+          - label_selector: "role=web"
+          - label_selector: "role=old"
+            state: absent
+    hcloud_servers:
+      - name: web-01
+        server_type: cx23
+        labels:
+          role: web
+
+  roles:
+    - ansible-role-hetzner-cloud

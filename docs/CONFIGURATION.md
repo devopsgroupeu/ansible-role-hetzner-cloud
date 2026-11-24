@@ -126,7 +126,7 @@ hcloud_subnetworks:
 
 ## Firewalls (`hcloud_firewalls`)
 
-Firewall resources with embedded rules and optional label-selector bindings.
+Firewall resources with embedded rules and optional bindings to servers or label selectors.
 
 ```yaml
 hcloud_firewalls:
@@ -141,6 +141,7 @@ hcloud_firewalls:
         description: kube-apiserver
     apply_to:
       - label_selector: "role=control-plane"
+      - server: bastion-01
     labels:
       cluster: prod
     state: present
@@ -150,7 +151,7 @@ hcloud_firewalls:
 |---|---|---|---|
 | `name` | str | Yes | Firewall name. |
 | `rules` | list[dict] | No | List of firewall rule dicts (see below). |
-| `apply_to` | list[dict] | No | Label-selector or server bindings to auto-attach the firewall to. |
+| `apply_to` | list[dict] | No | Bindings to servers or label selectors (see below). Applied after the servers, so a server created in the same run can be bound. |
 | `labels` | dict | No | Arbitrary key/value labels. |
 | `state` | str | No | Per-resource state override. |
 
@@ -164,6 +165,16 @@ Firewall rule sub-keys:
 | `source_ips` | list[str] | CIDR list (for `in` rules). |
 | `destination_ips` | list[str] | CIDR list (for `out` rules). |
 | `description` | str | Human-readable label. |
+
+`apply_to` entry sub-keys (each entry needs exactly one of `label_selector` or `server`; unknown keys are rejected):
+
+| Key | Type | Description |
+|---|---|---|
+| `label_selector` | str | Label selector to bind, e.g. `role=control-plane`. |
+| `server` | str | Server name to bind. |
+| `state` | str | `present` (default) or `absent`. |
+
+Bindings are additive: deleting an entry from `apply_to` does **not** unbind the firewall, so its rules keep applying. To remove a binding, keep the entry with `state: absent` (this requires `hcloud_allow_teardown: true`), run the role, then delete the entry.
 
 ---
 

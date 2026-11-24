@@ -137,7 +137,7 @@ All tunables are prefixed `hcloud_*`. Full documented defaults are in [`defaults
 | `hcloud_ssh_keys` | list[dict] | `[]` | SSH keys to upload. Required sub-keys: `name`. |
 | `hcloud_networks` | list[dict] | `[]` | Private networks. Required sub-keys: `name`, `ip_range`. |
 | `hcloud_subnetworks` | list[dict] | `[]` | Subnets within networks. Required sub-keys: `network`, `type`, `network_zone`, `ip_range`. |
-| `hcloud_firewalls` | list[dict] | `[]` | Firewall rules. Required sub-keys: `name`. |
+| `hcloud_firewalls` | list[dict] | `[]` | Firewall rules and `apply_to` bindings (servers or label selectors). Required sub-keys: `name`. |
 | `hcloud_placement_groups` | list[dict] | `[]` | Anti-affinity groups. Required sub-keys: `name`, `type` (`spread`). |
 | `hcloud_servers` | list[dict] | `[]` | Compute instances. Required sub-keys: `name`, `server_type` (when `state: present`). |
 | `hcloud_server_networks` | list[dict] | `[]` | Server-network attachments. Required sub-keys: `server`, `network`. |
@@ -152,7 +152,7 @@ Full per-item sub-key documentation is in [`docs/CONFIGURATION.md`](docs/CONFIGU
 
 ## Teardown safety
 
-Any run where `hcloud_state: absent` or any per-resource `state: absent` is detected will abort unless `-e hcloud_allow_teardown=true` is also passed. Scope destructive runs with `--tags` to avoid destroying everything at once:
+Any run where `hcloud_state: absent` or any per-resource `state: absent` (including load balancer services/targets and firewall `apply_to` entries) is detected will abort unless `-e hcloud_allow_teardown=true` is also passed. Scope destructive runs with `--tags` to avoid destroying everything at once:
 
 ```bash
 ansible-playbook examples/teardown.yml \

@@ -253,8 +253,8 @@ argument_specs:
         required: false
         default: []
         description: >
-          Firewall resources with embedded rules and optional label-selector
-          bindings. Rules are managed declaratively.
+          Firewall resources with embedded rules and optional server or
+          label-selector bindings (apply_to). Rules are managed declaratively.
         options:
           name:
             type: str
@@ -314,8 +314,32 @@ argument_specs:
             required: false
             default: []
             description: >
-              List of resource selectors to auto-attach this firewall to
-              (e.g. [{label_selector: "role=control-plane"}]).
+              Resources to bind this firewall to, applied after the servers
+              (e.g. [{label_selector: "role=control-plane"}, {server: cp-01}]).
+              Bindings are additive: removing an entry does not unbind it;
+              keep the entry with state=absent to remove the binding.
+            mutually_exclusive:
+              - [label_selector, server]
+            required_one_of:
+              - [label_selector, server]
+            options:
+              label_selector:
+                type: str
+                required: false
+                description: Label selector to bind (e.g. "role=control-plane").
+              server:
+                type: str
+                required: false
+                description: Server name to bind.
+              state:
+                type: str
+                required: false
+                choices:
+                  - present
+                  - absent
+                description: >
+                  present (default) binds the resource; absent removes the
+                  binding and requires hcloud_allow_teardown=true.
           labels:
             type: dict
             required: false

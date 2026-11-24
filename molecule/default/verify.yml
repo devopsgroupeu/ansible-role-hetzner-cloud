@@ -349,3 +349,66 @@
           {{ hcloud_provisioned_servers }} Rendered:
           {{ refresh_inv.content | b64decode }}
         success_msg: "Outputs skip null/skipped entries and every host has ansible_host"
+
+# =============================================================================
+# Fifth play: firewall apply_to entries are validated by argument_specs, so a
+# typo or an entry with both server and label_selector fails instead of
+# binding nothing.
+# =============================================================================
+- name: Verify invalid firewall apply_to entries are rejected
+  hosts: all
+  gather_facts: false
+
+  vars:
+    hcloud_provision: false
+
+  tasks:
+    - name: Run the role with an apply_to key typo
+      block:
+        - name: Include hetzner-cloud role (expected to fail argument validation)
+          ansible.builtin.include_role:
+            name: ansible-role-hetzner-cloud
+          vars:
+            hcloud_firewalls:
+              - name: k8s-cp-fw
+                apply_to:
+                  - server: demo-cp-01
+                  - lable_selector: "role=control-plane"
+
+        - name: Role accepted the typo (UNEXPECTED)
+          ansible.builtin.set_fact:
+            apply_to_typo_msg: ""
+      rescue:
+        - name: Record the argument validation error
+          ansible.builtin.set_fact:
+            apply_to_typo_msg: "{{ ansible_failed_result.msg | default('') }}"
+
+    - name: Run the role with server and label_selector in one entry
+      block:
+        - name: Include hetzner-cloud role (expected to fail argument validation)
+          ansible.builtin.include_role:
+            name: ansible-role-hetzner-cloud
+          vars:
+            hcloud_firewalls:
+              - name: k8s-cp-fw
+                apply_to:
+                  - server: demo-cp-01
+                    label_selector: "role=control-plane"
+
+        - name: Role accepted the ambiguous entry (UNEXPECTED)
+          ansible.builtin.set_fact:
+            apply_to_both_msg: ""
+      rescue:
+        - name: Record the argument validation error
+          ansible.builtin.set_fact:
+            apply_to_both_msg: "{{ ansible_failed_result.msg | default('') }}"
+
+    - name: Assert invalid apply_to entries were rejected
+      ansible.builtin.assert:
+        that:
+          - "'lable_selector' in apply_to_typo_msg"
+          - "'mutually exclusive' in apply_to_both_msg"
+        fail_msg: >-
+          Invalid apply_to entries passed argument validation.
+          Typo: '{{ apply_to_typo_msg }}'. Both keys: '{{ apply_to_both_msg }}'.
+        success_msg: "apply_to typos and ambiguous entries are rejected"

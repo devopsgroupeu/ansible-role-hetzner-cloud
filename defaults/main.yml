@@ -94,8 +94,9 @@ hcloud_networks: []
 hcloud_subnetworks: []
 
 # ── Firewalls ─────────────────────────────────────────────────────────────────
-# Firewall resources with embedded rules and optional label-selector bindings.
-# Required per-item: name.
+# Firewall resources with embedded rules and optional bindings (apply_to).
+# Required per-item: name. Each apply_to entry holds one of label_selector or
+# server. Bindings are additive: to unbind, keep the entry with state: absent.
 # hcloud_firewalls:
 #   - name: k8s-cp-fw
 #     rules:
@@ -106,6 +107,9 @@ hcloud_subnetworks: []
 #         description: kube-apiserver
 #     apply_to:
 #       - label_selector: "role=control-plane"
+#       - server: cp-01
+#       - label_selector: "role=old"
+#         state: absent
 #     labels: {}
 #     state: present
 hcloud_firewalls: []

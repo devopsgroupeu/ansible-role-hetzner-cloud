@@ -88,6 +88,7 @@ Resources are created in dependency order within a single play:
 4. Placement groups
 5. Primary IPs (so servers can reference them)
 6. Servers (reference SSH keys, firewalls, placement groups)
+   - Firewall bindings (`apply_to`), so servers created in the run can be bound
 7. Server-network attachments (reference servers and networks)
 8. Floating IPs
 9. Volumes
