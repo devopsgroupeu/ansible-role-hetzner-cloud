@@ -16,7 +16,12 @@
 # =============================================================================
 
 - name: Manage load balancer
-  ansible.builtin.include_tasks: load_balancer_item.yml
+  ansible.builtin.include_tasks:
+    file: load_balancer_item.yml
+    apply:
+      tags:
+        - hcloud
+        - load_balancers
   loop: "{{ hcloud_load_balancers }}"
   loop_control:
     loop_var: hcloud_lb_item

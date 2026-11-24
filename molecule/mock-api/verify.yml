@@ -73,3 +73,26 @@
           Requests: {{ mock_requests }}
           Output: {{ mock_case_runs.results[0].stdout_lines | default([]) | last }}
         success_msg: "Assigned floating IP was unassigned, then deleted"
+
+    - name: Case - scope a run with --tags servers
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        case:
+          name: tags_servers
+          playbook: tags_servers.yml
+          args:
+            - --tags
+            - servers
+
+    - name: Assert --tags servers reached the servers API and nothing else
+      ansible.builtin.assert:
+        that:
+          - mock_case_runs.results[0].rc == 0
+          - "'GET /servers?name=cp-01' in mock_requests"
+          - "'POST /servers' in mock_requests"
+          - mock_requests | select('search', '/networks') | list | length == 0
+        fail_msg: >-
+          --tags servers did not run exactly the server tasks.
+          Requests: {{ mock_requests }}
+          Output: {{ mock_case_runs.results[0].stdout_lines | default([]) | last }}
+        success_msg: "--tags servers ran the server tasks only"

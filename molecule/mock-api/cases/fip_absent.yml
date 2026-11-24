@@ -14,7 +14,5 @@
         home_location: nbg1
         state: absent
 
-  tasks:
-    - name: Include hetzner-cloud role
-      ansible.builtin.include_role:
-        name: ansible-role-hetzner-cloud
+  roles:
+    - ansible-role-hetzner-cloud
