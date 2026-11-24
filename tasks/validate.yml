@@ -129,14 +129,17 @@
     that:
       - item.name is defined and item.name | length > 0
       - (item.state | default(hcloud_state)) == 'absent' or item.server_type is defined
+    # Name only: a server entry may carry user_data (join tokens), so the
+    # entry is never echoed and the task output is masked by hcloud_no_log.
     fail_msg: >-
-      Server entry invalid: 'name' is required; 'server_type' is required when
-      state=present. Entry: {{ item | to_json }}
+      Server entry '{{ item.name | default('UNNAMED') }}' invalid: 'name' is
+      required; 'server_type' is required when state=present.
     success_msg: "Server '{{ item.name }}' validated"
   loop: "{{ hcloud_servers }}"
   loop_control:
     label: "{{ item.name | default('UNNAMED') }}"
   when: hcloud_servers | length > 0
+  no_log: "{{ hcloud_no_log }}"
 
 - name: Validate required fields — server network attachments
   ansible.builtin.assert:

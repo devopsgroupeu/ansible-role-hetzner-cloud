@@ -68,11 +68,15 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run Molecule scenario
-        run: molecule test -s ${{ matrix.scenario }}
+        shell: bash
+        run: molecule test -s ${{ matrix.scenario }} 2>&1 | tee molecule.log
         env:
           PY_COLORS: "1"
           ANSIBLE_FORCE_COLOR: "1"
           MOLECULE_IMAGE: "geerlingguy/docker-${{ matrix.distro }}-ansible:latest"
+
+      - name: Assert user_data never appears in the output
+        run: "! grep -q SENTINEL-USERDATA molecule.log"
 
   ci-success:
     name: ci-success

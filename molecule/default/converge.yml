@@ -65,6 +65,8 @@
         firewalls:
           - k8s-cp-fw
         placement_group: cp-spread
+        # Sentinel: must never appear in task output (verify + CI grep).
+        user_data: "#cloud-config\n# SENTINEL-USERDATA"
         labels:
           role: control-plane
           cluster: demo

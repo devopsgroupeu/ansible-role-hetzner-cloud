@@ -170,3 +170,48 @@
         success_msg: >-
           Populated inventory render correct: cp-01 in server_nodes,
           worker-01 in agent_nodes, with public + private IPs.
+
+# =============================================================================
+# Third play: an invalid server entry that carries user_data must fail
+# validation without echoing user_data (it may hold join tokens).
+# no_log censors what is displayed, not registered data, so the in-memory
+# failed result still holds the item. We assert on the failure message (which
+# Ansible prints even under no_log); CI greps the whole molecule output for
+# the sentinel to prove nothing is displayed.
+# =============================================================================
+- name: Verify invalid server entries do not leak user_data
+  hosts: all
+  gather_facts: false
+
+  vars:
+    hcloud_provision: false
+    hcloud_servers:
+      - name: demo-cp-01
+        user_data: "#cloud-config\n# SENTINEL-USERDATA"
+
+  tasks:
+    - name: Run the role with a server missing server_type
+      block:
+        - name: Include hetzner-cloud role (expected to fail validation)
+          ansible.builtin.include_role:
+            name: ansible-role-hetzner-cloud
+
+        - name: Role completed without failing (UNEXPECTED)
+          ansible.builtin.set_fact:
+            userdata_validation_failed: false
+      rescue:
+        - name: Record that validation failed as expected
+          ansible.builtin.set_fact:
+            userdata_validation_failed: true
+            userdata_failed_msgs: "{{ ansible_failed_result.results | default([]) | map(attribute='msg', default='') | join(' ') }}"
+
+    - name: Assert validation failed and user_data stayed hidden
+      ansible.builtin.assert:
+        that:
+          - userdata_validation_failed | bool
+          - "'demo-cp-01' in userdata_failed_msgs"
+          - "'SENTINEL' not in userdata_failed_msgs"
+        fail_msg: >-
+          Invalid server entry either passed validation or leaked user_data
+          into the failure message.
+        success_msg: "Invalid server entry failed validation without leaking user_data"
