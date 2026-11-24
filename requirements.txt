@@ -1,9 +1,10 @@
 # Python requirements for testing
-ansible-core>=2.19,<2.22
+ansible-core>=2.19,<2.23
 molecule>=25.0.0,<27.0.0
 molecule-plugins[docker]>=23.5.0,<27
 ansible-lint>=26.6,<27
 yamllint>=1.35.0,<2.0.0
-# Hetzner Cloud Python SDK (vendored inside hetzner.hcloud collection since v1.16,
-# but listed here for clarity and for any tooling that resolves it independently)
-hcloud>=2.0.0
+# Runtime dependencies of the hetzner.hcloud collection (its own
+# requirements.txt). The hcloud Python SDK is vendored inside the collection.
+python-dateutil>=2.7.5
+requests>=2.20
