@@ -1,0 +1,4 @@
+#!/bin/sh
+# Stand-in for ansible-galaxy that reports an unsupported hetzner.hcloud
+# version, used by the preflight_version case.
+echo '{"/fake/ansible_collections": {"hetzner.hcloud": {"version": "8.0.0"}}}'

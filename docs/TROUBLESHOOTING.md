@@ -65,6 +65,20 @@ ansible-playbook site.yml -e hcloud_provision=false
 
 The offline molecule scenario (`molecule test -s default`) uses this approach and requires no token.
 
+### `could not resolve the module_defaults group hetzner.hcloud.all`
+
+**Symptom:** The play fails before any task runs with `Error loading module_defaults: could not resolve the module_defaults group hetzner.hcloud.all`.
+
+**Cause:** The `hetzner.hcloud` collection is not installed (or not on `ANSIBLE_COLLECTIONS_PATH`). Ansible resolves the role's `module_defaults` group when it loads the play, so this happens before the role's preflight check can run.
+
+**Fix:** `ansible-galaxy collection install -r requirements.yml`.
+
+### `hetzner.hcloud X found; this role needs >=6.9.0,<8.0.0`
+
+**Cause:** The preflight check found a collection version outside the supported range (`0.0.0` means `ansible-galaxy collection list` did not find it). The check reads the first match in collection search path order, which is the version Ansible loads, and also runs under `--check`.
+
+**Fix:** `ansible-galaxy collection install -r requirements.yml --force` (or remove the older copy that shadows it).
+
 ---
 
 ## Rate limits

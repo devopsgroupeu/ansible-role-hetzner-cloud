@@ -1,0 +1,19 @@
+---
+# Run with --check and hcloud_provision: true: preflight must pass and no
+# request may change anything.
+- name: Case - check mode against the API
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    hcloud_ssh_keys:
+      - name: ops-key
+        public_key: ssh-ed25519 AAAAmock
+    hcloud_networks:
+      - name: prod-net
+        ip_range: "10.0.0.0/16"
+
+  roles:
+    - ansible-role-hetzner-cloud

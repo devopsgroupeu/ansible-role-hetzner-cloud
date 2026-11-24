@@ -299,3 +299,46 @@
           Requests: {{ mock_requests }}
           Outputs: {{ mock_case_runs.results | map(attribute='stdout_lines') | map('last') | list }}
         success_msg: "Volume created before the server, attached at creation, second run unchanged"
+
+    - name: Case - check mode with provisioning enabled
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        case:
+          name: check_mode
+          playbook: check_mode.yml
+          args:
+            - --check
+
+    - name: Assert check mode passed preflight and changed nothing
+      ansible.builtin.assert:
+        that:
+          - mock_case_runs.results[0].rc == 0
+          - mock_case_runs.results[0].stdout is search('hetzner.hcloud [0-9.]+ is supported')
+          - "'GET /ssh_keys?name=ops-key' in mock_requests"
+          - mock_requests | reject('match', 'GET ') | list | length == 0
+        fail_msg: >-
+          --check failed or sent a mutating request.
+          Requests: {{ mock_requests }}
+          Output: {{ mock_case_runs.results[0].stdout_lines | default([]) | last }}
+        success_msg: "--check passed preflight and only read from the API"
+
+    - name: Case - unsupported collection version
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        case:
+          name: preflight_version
+          playbook: check_mode.yml
+          env:
+            PATH: "{{ playbook_dir }}/files/fake-galaxy:{{ lookup('ansible.builtin.env', 'PATH') }}"
+
+    - name: Assert preflight refused the unsupported version before any API call
+      ansible.builtin.assert:
+        that:
+          - mock_case_runs.results[0].rc != 0
+          - (mock_case_runs.results[0].stdout ~ mock_case_runs.results[0].stderr) is search('hetzner.hcloud 8.0.0 found')
+          - mock_requests | length == 0
+        fail_msg: >-
+          Preflight accepted hetzner.hcloud 8.0.0 or called the API.
+          Requests: {{ mock_requests }}
+          Output: {{ mock_case_runs.results[0].stdout_lines | default([]) | last }}
+        success_msg: "Preflight refused hetzner.hcloud 8.0.0"

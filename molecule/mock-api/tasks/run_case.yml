@@ -1,7 +1,8 @@
 ---
-# Reset the mock to case.seed, run cases/<case.playbook> case.runs times and
-# expose the runs (mock_case_runs), the request log (mock_requests) and the
-# resulting resources (mock_state).
+# Reset the mock to case.seed, run cases/<case.playbook> case.runs times
+# (with case.args and the extra environment case.env) and expose the runs
+# (mock_case_runs), the request log (mock_requests) and the resulting
+# resources (mock_state).
 - name: Reset the mock API state - {{ case.name }}
   ansible.builtin.uri:
     url: "{{ mock_url }}/__mock/reset"
@@ -18,6 +19,8 @@
   loop: "{{ range(case.runs | default(1)) | list }}"
   loop_control:
     label: "{{ case.name }} run {{ item + 1 }}"
+  # Plain output, so assertions can search the run's stdout.
+  environment: "{{ {'ANSIBLE_NOCOLOR': '1', 'ANSIBLE_FORCE_COLOR': '0'} | combine(case.env | default({})) }}"
   register: mock_case_runs
   changed_when: false
   failed_when: false
