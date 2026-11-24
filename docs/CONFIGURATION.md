@@ -301,11 +301,12 @@ hcloud_floating_ips:
 | `name` | str | Yes | Floating IP name. |
 | `type` | str | Yes | IP version: `ipv4` or `ipv6`. |
 | `home_location` | str | No | Location slug to anchor the IP to. Required when `state: present` unless `server` is set. |
-| `server` | str | No | Server name to assign the floating IP to initially. An external load balancer reassigns it during failover. |
+| `server` | str | No | Server name to assign the floating IP to. When omitted, the current assignment is kept: runtime assignment is owned by keepalived (or another external load balancer), and the role never detaches the IP on re-runs. |
+| `unassign` | bool | No | Set `true` to detach the floating IP from its current server. Default `false`. |
 | `description` | str | No | Human-readable description. |
 | `delete_protection` | bool | No | Prevent accidental deletion. |
 | `labels` | dict | No | Arbitrary key/value labels. |
-| `state` | str | No | Per-resource state override. |
+| `state` | str | No | Per-resource state override. `absent` unassigns the IP first, then deletes it (Hetzner rejects deleting an assigned IP). |
 
 ---
 

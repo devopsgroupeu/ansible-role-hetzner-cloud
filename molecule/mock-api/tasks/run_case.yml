@@ -1,0 +1,32 @@
+---
+# Reset the mock to case.seed, run cases/<case.playbook> case.runs times and
+# expose the runs (mock_case_runs) and the request log (mock_requests).
+- name: Reset the mock API state - {{ case.name }}
+  ansible.builtin.uri:
+    url: "{{ mock_url }}/__mock/reset"
+    method: POST
+    body_format: json
+    body:
+      seed: "{{ case.seed | default({}) }}"
+
+- name: Run the case playbook - {{ case.name }}
+  ansible.builtin.command:
+    argv: >-
+      {{ ['ansible-playbook', '-i', 'localhost,', playbook_dir ~ '/cases/' ~ case.playbook]
+         + (case.args | default([])) }}
+  loop: "{{ range(case.runs | default(1)) | list }}"
+  loop_control:
+    label: "{{ case.name }} run {{ item + 1 }}"
+  register: mock_case_runs
+  changed_when: false
+  failed_when: false
+
+- name: Read the mock API request log - {{ case.name }}
+  ansible.builtin.uri:
+    url: "{{ mock_url }}/__mock/log"
+    return_content: true
+  register: mock_case_log
+
+- name: Expose the request log - {{ case.name }}
+  ansible.builtin.set_fact:
+    mock_requests: "{{ mock_case_log.json.requests }}"

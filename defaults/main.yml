@@ -162,7 +162,6 @@ hcloud_primary_ips: []
 #   - name: ingress-vip
 #     type: ipv4
 #     home_location: fsn1
-#     server: ""
 #     labels: {}
 #     state: present
 hcloud_floating_ips: []
@@ -173,7 +172,6 @@ hcloud_floating_ips: []
 #   - name: vault-data
 #     size: 20
 #     location: fsn1
-#     server: ""
 #     format: ext4
 #     automount: false
 #     state: present

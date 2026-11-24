@@ -19,9 +19,9 @@
   hetzner.hcloud.volume:
     name: "{{ item.name }}"
     size: "{{ item.size | default(omit) }}"
-    location: "{{ item.location | default(omit) }}"
-    server: "{{ item.server | default(omit) }}"
-    format: "{{ item.format | default(omit) }}"
+    location: "{{ item.location | default(omit, true) }}"
+    server: "{{ item.server | default(omit, true) }}"
+    format: "{{ item.format | default(omit, true) }}"
     automount: "{{ item.automount | default(false) }}"
     delete_protection: "{{ item.delete_protection | default(omit) }}"
     labels: "{{ {hcloud_managed_label_key: hcloud_managed_label_value} | combine(item.labels | default({})) }}"

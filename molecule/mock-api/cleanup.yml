@@ -1,0 +1,18 @@
+---
+# Stop the mock Hetzner API started by prepare.yml.
+- name: Cleanup (stop the mock Hetzner API)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    mock_dir: "{{ lookup('ansible.builtin.env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}"
+
+  tasks:
+    - name: Stop the mock Hetzner API
+      ansible.builtin.shell:
+        cmd: >-
+          test -f {{ mock_dir }}/mock_hcloud.pid &&
+          kill "$(cat {{ mock_dir }}/mock_hcloud.pid)" &&
+          rm -f {{ mock_dir }}/mock_hcloud.pid || true
+      changed_when: true

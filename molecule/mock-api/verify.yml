@@ -1,0 +1,75 @@
+---
+# =============================================================================
+# verify.yml - assert on the mock API request log
+#
+# First the log left by converge + idempotence, then each case in cases/ on a
+# freshly seeded mock (see tasks/run_case.yml).
+# =============================================================================
+
+- name: Verify (assert on mock Hetzner API requests)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    mock_url: "{{ lookup('ansible.builtin.env', 'HCLOUD_ENDPOINT') }}"
+    assigned_fip_seed:
+      servers:
+        - id: 42
+          name: proxy-01
+          location: nbg1
+      floating_ips:
+        - id: 7
+          name: ingress-vip
+          home_location: nbg1
+          set:
+            server: 42
+
+  tasks:
+    - name: Read the request log of converge + idempotence
+      ansible.builtin.uri:
+        url: "{{ mock_url }}/__mock/log"
+        return_content: true
+      register: converge_log
+
+    - name: Read the floating IP state after converge
+      ansible.builtin.uri:
+        url: "{{ mock_url }}/floating_ips?name=ingress-vip"
+        headers:
+          Authorization: Bearer mock
+        return_content: true
+      register: converge_fip
+
+    - name: Assert converge kept the runtime floating IP assignment
+      ansible.builtin.assert:
+        that:
+          - converge_log.json.requests | select('search', '/floating_ips/7/actions/unassign') | list | length == 0
+          - converge_fip.json.floating_ips[0].server == 42
+          - converge_log.json.requests | select('match', 'POST /volumes$') | list | length == 1
+        fail_msg: >-
+          Converge detached the floating IP or did not create the volume once.
+          Requests: {{ converge_log.json.requests }}
+        success_msg: "Floating IP stayed on proxy-01; volume created once with server: ''"
+
+    - name: Case - delete an assigned floating IP
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        case:
+          name: fip_absent
+          playbook: fip_absent.yml
+          seed: "{{ assigned_fip_seed }}"
+
+    - name: Assert the floating IP was unassigned, then deleted
+      ansible.builtin.assert:
+        that:
+          - mock_case_runs.results[0].rc == 0
+          - "'POST /floating_ips/7/actions/unassign' in mock_requests"
+          - "'DELETE /floating_ips/7' in mock_requests"
+          - >-
+            mock_requests.index('POST /floating_ips/7/actions/unassign')
+            < mock_requests.index('DELETE /floating_ips/7')
+        fail_msg: >-
+          Deleting an assigned floating IP did not unassign then delete it.
+          Requests: {{ mock_requests }}
+          Output: {{ mock_case_runs.results[0].stdout_lines | default([]) | last }}
+        success_msg: "Assigned floating IP was unassigned, then deleted"

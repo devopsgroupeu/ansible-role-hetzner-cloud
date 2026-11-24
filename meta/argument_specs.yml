@@ -564,7 +564,16 @@ argument_specs:
           server:
             type: str
             required: false
-            description: Server name to assign the floating IP to initially.
+            description: >
+              Server name to assign the floating IP to. When omitted, the
+              current assignment (e.g. set at runtime by keepalived) is kept.
+          unassign:
+            type: bool
+            required: false
+            default: false
+            description: >
+              Detach the floating IP from its current server. Without it the
+              role never unassigns an IP that has no 'server' configured.
           description:
             type: str
             required: false

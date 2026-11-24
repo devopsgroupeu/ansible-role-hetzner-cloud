@@ -1,0 +1,56 @@
+---
+# Start the mock Hetzner API on 127.0.0.1 and seed the converge state.
+- name: Prepare (start and seed the mock Hetzner API)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    mock_port: "{{ lookup('ansible.builtin.env', 'MOCK_HCLOUD_PORT') }}"
+    mock_url: "{{ lookup('ansible.builtin.env', 'HCLOUD_ENDPOINT') }}"
+    mock_dir: "{{ lookup('ansible.builtin.env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}"
+
+  tasks:
+    - name: Fail early if the mock port is already taken
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: "{{ mock_port | int }}"
+        state: stopped
+        timeout: 5
+
+    - name: Start the mock Hetzner API in the background
+      ansible.builtin.shell:
+        cmd: >-
+          nohup {{ ansible_playbook_python }} {{ playbook_dir }}/files/mock_hcloud.py {{ mock_port }}
+          > {{ mock_dir }}/mock_hcloud.log 2>&1 &
+          echo $! > {{ mock_dir }}/mock_hcloud.pid
+      changed_when: true
+
+    - name: Wait for the mock Hetzner API to listen
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: "{{ mock_port | int }}"
+        timeout: 15
+
+    # The floating IP is already assigned to proxy-01, as keepalived would
+    # have done at runtime. converge.yml must keep that assignment.
+    - name: Seed the mock with the converge starting state
+      ansible.builtin.uri:
+        url: "{{ mock_url }}/__mock/reset"
+        method: POST
+        body_format: json
+        body:
+          seed:
+            servers:
+              - id: 42
+                name: proxy-01
+                location: nbg1
+            floating_ips:
+              - id: 7
+                name: ingress-vip
+                home_location: nbg1
+                labels:
+                  managed-by: ansible-hetzner-cloud
+                  role: vip
+                set:
+                  server: 42
