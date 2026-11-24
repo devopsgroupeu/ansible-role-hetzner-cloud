@@ -1,0 +1,30 @@
+---
+# One server present and attached to a network, one absent, with the static
+# inventory written in the same run.
+- name: Case - outputs after create, attach and delete in one run
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    hcloud_allow_teardown: true
+    hcloud_write_inventory: true
+    hcloud_inventory_path: "{{ lookup('ansible.builtin.env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/server_outputs_inventory.yml"
+    hcloud_networks:
+      - name: prod-net
+        ip_range: "10.99.0.0/16"
+    hcloud_servers:
+      - name: cp-01
+        server_type: cx23
+        labels:
+          role: control-plane
+      - name: cp-02
+        state: absent
+    hcloud_server_networks:
+      - server: cp-01
+        network: prod-net
+        ip: "10.99.1.10"
+
+  roles:
+    - ansible-role-hetzner-cloud

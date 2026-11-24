@@ -205,3 +205,34 @@
           State: {{ mock_state.primary_ips }}
           Output: {{ mock_case_runs.results[0].stdout_lines | default([]) | last }}
         success_msg: "Primary IPs: explicit location, default location and server assignment"
+
+    - name: Case - outputs after create, attach and delete in one run
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        case:
+          name: server_outputs
+          playbook: server_outputs.yml
+          seed:
+            servers:
+              - name: cp-02
+
+    - name: Read the inventory written by the case
+      ansible.builtin.slurp:
+        src: "{{ lookup('ansible.builtin.env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/server_outputs_inventory.yml"
+      register: server_outputs_inv
+      when: mock_case_runs.results[0].rc == 0
+
+    - name: Assert the inventory holds the refreshed server with its private IP
+      vars:
+        inv: "{{ server_outputs_inv.content | default('') | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - mock_case_runs.results[0].rc == 0
+          - mock_requests | select('match', 'DELETE /servers/') | list | length == 1
+          - inv.all.children.server_nodes.hosts['cp-01'].ansible_host | length > 0
+          - inv.all.children.server_nodes.hosts['cp-01'].hcloud_private_ip == '10.99.1.10'
+          - "'cp-02' not in (server_outputs_inv.content | default('') | b64decode)"
+        fail_msg: >-
+          Outputs after a mixed run are wrong.
+          Output: {{ mock_case_runs.results[0].stdout_lines | default([]) | last }}
+        success_msg: "Inventory built from refreshed state, private IP set on the first run"

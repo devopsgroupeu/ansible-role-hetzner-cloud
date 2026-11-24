@@ -110,8 +110,9 @@ all:
 ```
 
 Note: the static inventory is generated from the `hcloud_provisioned_servers`
-role fact set by `outputs.yml`. It only contains servers created in the same run
-(not previously existing servers).
+role fact set by `outputs.yml`. It contains every `hcloud_servers` entry with
+`state: present`, read back with `server_info` after the network attachments,
+so private IPs are filled in on the first run. Absent servers are left out.
 
 ---
 

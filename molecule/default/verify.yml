@@ -215,3 +215,83 @@
           Invalid server entry either passed validation or leaked user_data
           into the failure message.
         success_msg: "Invalid server entry failed validation without leaking user_data"
+
+# =============================================================================
+# Fourth play: build outputs from stubbed server_info results the way
+# main.yml registers them, including null entries, skipped items, a server
+# without public IPv4 and one without private networks.
+# =============================================================================
+- name: Verify outputs from refreshed server state (offline, stubbed)
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    - name: Stub the refreshed server_info results
+      ansible.builtin.set_fact:
+        _hcloud_server_refresh:
+          results:
+            - hcloud_server_info:
+                - name: cp-01
+                  ipv4_address: "203.0.113.10"
+                  labels:
+                    role: control-plane
+                  private_networks_info:
+                    - name: demo-net
+                      ip: "10.0.1.11"
+            - hcloud_server_info:
+                - name: wk-01
+                  ipv4_address: null
+                  labels:
+                    role: worker
+                  private_networks_info:
+                    - name: demo-net
+                      ip: "10.0.1.21"
+            - hcloud_server_info:
+                - name: px-01
+                  ipv4_address: "203.0.113.30"
+                  labels:
+                    role: proxy
+                  private_networks_info: []
+            - hcloud_server_info:
+                - null
+            - hcloud_server_info: []
+            - skipped: true
+              item:
+                name: gone-01
+
+    - name: Run the role outputs on the stubbed results
+      ansible.builtin.include_role:
+        name: ansible-role-hetzner-cloud
+        tasks_from: outputs.yml
+      vars:
+        hcloud_write_inventory: true
+        hcloud_inventory_path: /tmp/hcloud_inventory_refresh.yml
+
+    - name: Read the rendered inventory
+      ansible.builtin.slurp:
+        src: /tmp/hcloud_inventory_refresh.yml
+      register: refresh_inv
+
+    - name: Parse the rendered inventory
+      ansible.builtin.set_fact:
+        refresh_parsed: "{{ refresh_inv.content | b64decode | from_yaml }}"
+
+    - name: Assert outputs skip null entries and every host has an address
+      vars:
+        refresh_hosts: >-
+          {{ refresh_parsed.all.children.values() | map(attribute='hosts')
+             | select('mapping') | map('dict2items') | flatten | items2dict }}
+      ansible.builtin.assert:
+        that:
+          - hcloud_provisioned_servers | map(attribute='name') | list == ['cp-01', 'wk-01', 'px-01']
+          - refresh_hosts | length == 3
+          - refresh_hosts.values() | map(attribute='ansible_host') | select | list | length == 3
+          - refresh_hosts['cp-01'].ansible_host == '203.0.113.10'
+          - refresh_hosts['wk-01'].ansible_host == '10.0.1.21'
+          - refresh_hosts['px-01'].ansible_host == '203.0.113.30'
+          - refresh_hosts['cp-01'].hcloud_private_ip == '10.0.1.11'
+        fail_msg: >-
+          Outputs from refreshed state are wrong. Fact:
+          {{ hcloud_provisioned_servers }} Rendered:
+          {{ refresh_inv.content | b64decode }}
+        success_msg: "Outputs skip null/skipped entries and every host has ansible_host"

@@ -170,6 +170,23 @@
         - server_networks
         - servers
 
+    # Read servers back after the network attachments: the server module
+    # returns create-time data (no private IPs yet on the first run, null for
+    # absent servers), so outputs.yml is built from this refreshed state.
+    - name: Refresh provisioned server state
+      hetzner.hcloud.server_info:
+        name: "{{ item.name }}"
+      loop: "{{ hcloud_servers }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: _hcloud_server_refresh
+      when: (item.state | default(hcloud_state)) == 'present'
+      tags:
+        - hcloud
+        - servers
+        - server_networks
+        - outputs
+
     - name: Manage floating IPs
       ansible.builtin.include_tasks:
         file: floating_ips.yml
