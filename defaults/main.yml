@@ -53,6 +53,15 @@ hcloud_write_inventory: false
 # Required (non-empty) when hcloud_write_inventory is true.
 hcloud_inventory_path: ""
 
+# Static inventory groups: group name -> value of the servers' 'role' label.
+# Servers whose role label matches no value (or that have none) are written
+# under 'ungrouped'.
+hcloud_inventory_groups:
+  server_nodes: control-plane
+  agent_nodes: worker
+  proxy_hosts: proxy
+  vault: vault
+
 # ── SSH keys ──────────────────────────────────────────────────────────────────
 # List of SSH public key dicts to upload to Hetzner Cloud.
 # Required per-item: name, public_key (when state=present).

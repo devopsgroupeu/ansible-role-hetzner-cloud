@@ -128,6 +128,7 @@ All tunables are prefixed `hcloud_*`. Full documented defaults are in [`defaults
 | `hcloud_managed_label_value` | str | `ansible-hetzner-cloud` | Label value paired with the managed-by key |
 | `hcloud_write_inventory` | bool | `false` | Write a static YAML inventory to `hcloud_inventory_path` |
 | `hcloud_inventory_path` | str | `""` | Destination for the static inventory (required if `hcloud_write_inventory: true`) |
+| `hcloud_inventory_groups` | dict | `{server_nodes: control-plane, agent_nodes: worker, proxy_hosts: proxy, vault: vault}` | Static inventory groups as group name -> `role` label value; unmatched servers go to `ungrouped` |
 
 ### Resource lists (all default to `[]`)
 

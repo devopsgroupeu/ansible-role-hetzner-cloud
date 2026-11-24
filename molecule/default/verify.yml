@@ -122,6 +122,10 @@
 - name: Verify populated inventory render (offline, stubbed servers)
   hosts: all
   gather_facts: false
+  # The template is rendered outside the role, so load the shipped defaults
+  # (hcloud_inventory_groups) explicitly.
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
 
   tasks:
     - name: Stub provisioned servers (overrides the empty fact from the role)
@@ -139,6 +143,17 @@
               role: worker
             private_networks_info:
               - ip: "10.0.1.21"
+          - name: db-01
+            ipv4_address: "203.0.113.30"
+            labels:
+              role: database
+            private_networks_info:
+              - ip: "10.0.1.31"
+          - name: misc-01
+            ipv4_address: "203.0.113.40"
+            labels:
+              cluster: demo
+            private_networks_info: []
 
     - name: Render inventory template with stubbed provisioned servers
       ansible.builtin.template:
@@ -170,6 +185,45 @@
         success_msg: >-
           Populated inventory render correct: cp-01 in server_nodes,
           worker-01 in agent_nodes, with public + private IPs.
+
+    - name: Assert servers matching no group land in ungrouped
+      ansible.builtin.assert:
+        that:
+          - populated_parsed.all.children.ungrouped.hosts['db-01'].ansible_host == '203.0.113.30'
+          - populated_parsed.all.children.ungrouped.hosts['db-01'].hcloud_private_ip == '10.0.1.31'
+          - populated_parsed.all.children.ungrouped.hosts['misc-01'].ansible_host == '203.0.113.40'
+          - populated_parsed.all.children.ungrouped.hosts | length == 2
+        fail_msg: >-
+          Unmatched servers were dropped. Rendered content:
+          {{ populated_inv.content | b64decode }}
+        success_msg: "db-01 (role=database) and misc-01 (no role) are in ungrouped"
+
+    - name: Render inventory template with custom inventory groups
+      ansible.builtin.template:
+        src: "{{ lookup('ansible.builtin.env', 'MOLECULE_PROJECT_DIRECTORY') }}/templates/hcloud_inventory.yml.j2"
+        dest: /tmp/hcloud_inventory_custom.yml
+        mode: "0640"
+      vars:
+        hcloud_inventory_groups:
+          databases: database
+
+    - name: Read the custom-group inventory back as structured YAML
+      ansible.builtin.slurp:
+        src: /tmp/hcloud_inventory_custom.yml
+      register: custom_inv
+
+    - name: Assert custom inventory groups are honoured
+      vars:
+        custom_parsed: "{{ custom_inv.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - custom_parsed.all.children.keys() | list | sort == ['databases', 'ungrouped']
+          - custom_parsed.all.children.databases.hosts.keys() | list == ['db-01']
+          - custom_parsed.all.children.ungrouped.hosts | length == 3
+        fail_msg: >-
+          Custom inventory groups not honoured. Rendered content:
+          {{ custom_inv.content | b64decode }}
+        success_msg: "Custom hcloud_inventory_groups map rendered as configured"
 
 # =============================================================================
 # Third play: an invalid server entry that carries user_data must fail
