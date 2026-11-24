@@ -42,6 +42,8 @@ provisioner:
         hosts:
           localhost:
             ansible_connection: local
+            # The controller's Python has the collection's requirements.
+            ansible_python_interpreter: "{{ ansible_playbook_python }}"
 
 verifier:
   name: ansible
@@ -51,5 +53,6 @@ scenario:
     - dependency
     - syntax
     - converge
+    - idempotence
     - verify
     - destroy

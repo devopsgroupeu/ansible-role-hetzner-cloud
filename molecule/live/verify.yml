@@ -18,14 +18,21 @@
         name: molecule-live-server
       register: server_info
 
-    - name: Assert server was created and is running
+    # server_info returns server_type as a plain name string.
+    - name: Assert server was created, is running and is on the private network
       ansible.builtin.assert:
         that:
           - server_info.hcloud_server_info | length == 1
           - server_info.hcloud_server_info[0].status == "running"
-          - server_info.hcloud_server_info[0].server_type.name == "cx23"
-        fail_msg: "molecule-live-server was not found or is not running."
-        success_msg: "molecule-live-server exists and is running."
+          - server_info.hcloud_server_info[0].server_type == "cx23"
+          - server_info.hcloud_server_info[0].ipv4_address | default('', true) | length > 0
+          - >-
+            '10.99.1.10' in (server_info.hcloud_server_info[0].private_networks_info
+                             | map(attribute='ip') | list)
+        fail_msg: >-
+          molecule-live-server is missing, not running, has no public IPv4 or
+          is not attached to molecule-live-net as 10.99.1.10.
+        success_msg: "molecule-live-server is running with its public and private IP."
 
     - name: Query provisioned network info
       hetzner.hcloud.network_info:
@@ -40,17 +47,3 @@
           - network_info.hcloud_network_info[0].ip_range == "10.99.0.0/16"
         fail_msg: "molecule-live-net was not found."
         success_msg: "molecule-live-net exists with correct IP range."
-
-    # Guard: catch template regressions — if hcloud_provisioned_servers is set
-    # and non-empty, every rendered ansible_host must resolve to a non-empty string.
-    # Relies on ipv4_address being present on each hcloud_server return value.
-    - name: Assert every provisioned server has a non-empty ansible_host (ipv4_address)
-      ansible.builtin.assert:
-        that:
-          - item.ipv4_address | default('') | length > 0
-        fail_msg: >-
-          Server '{{ item.name }}' has an empty ipv4_address — inventory template
-          would render a blank ansible_host. Check hcloud_inventory.yml.j2 field names.
-        success_msg: "Server '{{ item.name }}' has ipv4_address={{ item.ipv4_address }}."
-      loop: "{{ hcloud_provisioned_servers | default([]) }}"
-      when: hcloud_provisioned_servers | default([]) | length > 0
