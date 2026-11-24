@@ -120,6 +120,22 @@
         - hcloud
         - placement_groups
 
+    - name: Manage primary IPs
+      ansible.builtin.include_tasks:
+        file: primary_ips.yml
+        apply:
+          tags:
+            - hcloud
+            - primary_ips
+      vars:
+        _hcloud_phase: present
+      when: >-
+        hcloud_primary_ips | map(attribute='state', default=hcloud_state)
+        | select('eq', 'present') | list | length > 0
+      tags:
+        - hcloud
+        - primary_ips
+
     - name: Manage servers
       ansible.builtin.include_tasks:
         file: servers.yml
@@ -153,22 +169,6 @@
         - hcloud
         - server_networks
         - servers
-
-    - name: Manage primary IPs
-      ansible.builtin.include_tasks:
-        file: primary_ips.yml
-        apply:
-          tags:
-            - hcloud
-            - primary_ips
-      vars:
-        _hcloud_phase: present
-      when: >-
-        hcloud_primary_ips | map(attribute='state', default=hcloud_state)
-        | select('eq', 'present') | list | length > 0
-      tags:
-        - hcloud
-        - primary_ips
 
     - name: Manage floating IPs
       ansible.builtin.include_tasks:

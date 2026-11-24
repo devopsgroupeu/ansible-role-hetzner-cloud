@@ -86,12 +86,13 @@ Resources are created in dependency order within a single play:
 2. Networks → subnetworks
 3. Firewalls
 4. Placement groups
-5. Servers (reference SSH keys, firewalls, placement groups)
-6. Server-network attachments (reference servers and networks)
-7. Primary IPs / floating IPs
-8. Volumes
-9. Load balancers (optional, alternative to a self-hosted load balancer)
-10. Outputs: set `hcloud_provisioned_servers` fact; render static inventory
+5. Primary IPs (so servers can reference them)
+6. Servers (reference SSH keys, firewalls, placement groups)
+7. Server-network attachments (reference servers and networks)
+8. Floating IPs
+9. Volumes
+10. Load balancers (optional, alternative to a self-hosted load balancer)
+11. Outputs: set `hcloud_provisioned_servers` fact; render static inventory
 
 Items with `state: absent` are skipped in that pass and deleted afterwards in
 reverse dependency order: load balancers, volumes, floating IPs, primary IPs,

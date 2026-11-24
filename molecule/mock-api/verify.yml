@@ -175,3 +175,33 @@
           Request kinds: {{ kinds }}. Requests: {{ mock_requests }}
           Outputs: {{ mock_case_runs.results | map(attribute='stdout_lines') | map('last') | list }}
         success_msg: "Teardown ran in reverse dependency order and was re-runnable"
+
+    - name: Case - primary IPs with default location and server assignment
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        case:
+          name: primary_ips
+          playbook: primary_ips.yml
+          seed:
+            servers:
+              - id: 42
+                name: proxy-01
+                set:
+                  status: "off"
+
+    - name: Assert primary IPs got the right location or assignee
+      vars:
+        ips: "{{ mock_state.primary_ips | items2dict(key_name='name', value_name='location') }}"
+        assigned: "{{ mock_state.primary_ips | selectattr('name', 'eq', 'proxy-01-ipv4') | first }}"
+      ansible.builtin.assert:
+        that:
+          - mock_case_runs.results[0].rc == 0
+          - mock_state.primary_ips | length == 3
+          - ips['cp-01-ipv4'].name == 'fsn1'
+          - ips['cp-02-ipv4'].name == 'hel1'
+          - assigned.assignee_id == 42
+        fail_msg: >-
+          Primary IPs were not created as configured.
+          State: {{ mock_state.primary_ips }}
+          Output: {{ mock_case_runs.results[0].stdout_lines | default([]) | last }}
+        success_msg: "Primary IPs: explicit location, default location and server assignment"

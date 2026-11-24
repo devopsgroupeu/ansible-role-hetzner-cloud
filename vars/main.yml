@@ -15,9 +15,9 @@ _hcloud_resource_order:
   - subnetworks
   - firewalls
   - placement_groups
+  - primary_ips
   - servers
   - server_networks
-  - primary_ips
   - floating_ips
   - volumes
   - load_balancers

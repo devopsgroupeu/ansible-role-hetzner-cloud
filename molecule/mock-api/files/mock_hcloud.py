@@ -6,6 +6,7 @@ matter for ordering (assigned IPs and in-use firewalls cannot be deleted).
 Every request is logged; the test harness reads and resets state through:
 
   GET  /__mock/log    -> {"requests": ["METHOD /path?query", ...]}
+  GET  /__mock/state  -> {"<collection>": [{...}, ...]}
   POST /__mock/reset  -> body {"seed": {"<collection>": [{...}, ...]}}
 
 Usage: mock_hcloud.py <port>   (binds 127.0.0.1 only)
@@ -266,6 +267,8 @@ class Handler(BaseHTTPRequestHandler):
                     for item in items:
                         STATE["res"][col].append(build(col, item))
                 return self.send(200, {"ok": True})
+            if parts[1] == "state":
+                return self.send(200, STATE["res"])
             return self.send(200, {"requests": STATE["log"]})
         STATE["log"].append("%s %s" % (method, self.path))
         col = parts[0]

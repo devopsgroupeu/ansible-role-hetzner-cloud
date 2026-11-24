@@ -8,17 +8,18 @@
 #         (both enforced in main.yml)
 #
 # Use location (not the deprecated datacenter param; removal scheduled 2026-07-01).
-# assignee_type is optional as of collection v6.9.0.
-# A primary IP cannot be reassigned to a running server — the server must be off.
+# location defaults to hcloud_default_location unless 'server' is set, which
+# assigns the IP to that existing server (it must be powered off). Omitting
+# 'server' never unassigns an IP. Runs before servers so a server can
+# reference a primary IP created in the same run.
 # =============================================================================
 
 - name: Manage primary IPs
   hetzner.hcloud.primary_ip:
     name: "{{ item.name }}"
     type: "{{ item.type }}"
-    location: "{{ item.location | default(omit) }}"
-    assignee_type: "{{ item.assignee_type | default(omit) }}"
-    assignee_id: "{{ item.assignee_id | default(omit) }}"
+    location: "{{ item.location | default(omit if (item.server | default('', true)) else hcloud_default_location, true) }}"
+    server: "{{ item.server | default(omit, true) }}"
     auto_delete: "{{ item.auto_delete | default(false) }}"
     delete_protection: "{{ item.delete_protection | default(omit) }}"
     labels: "{{ {hcloud_managed_label_key: hcloud_managed_label_value} | combine(item.labels | default({})) }}"

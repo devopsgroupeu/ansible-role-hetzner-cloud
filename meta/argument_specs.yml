@@ -497,19 +497,16 @@ argument_specs:
             type: str
             required: false
             description: >
-              Location slug for placement (e.g. fsn1, nbg1). Required when
-              state=present and no assignee. Use location, not the deprecated
-              datacenter param (scheduled for removal after 2026-07-01).
-          assignee_type:
+              Location slug for placement (e.g. fsn1, nbg1). Defaults to
+              hcloud_default_location unless 'server' is set. Use location,
+              not the deprecated datacenter param (scheduled for removal after
+              2026-07-01).
+          server:
             type: str
             required: false
             description: >
-              Resource type the primary IP is assigned to (e.g. server).
-              Optional as of collection v6.9.0.
-          assignee_id:
-            type: int
-            required: false
-            description: Server ID to pre-assign this primary IP to.
+              Name of an existing, powered-off server to assign this primary IP
+              to. When omitted, the current assignment is left unchanged.
           auto_delete:
             type: bool
             required: false

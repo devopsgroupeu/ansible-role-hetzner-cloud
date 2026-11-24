@@ -1,0 +1,25 @@
+---
+# Primary IPs without the removed assignee_* keys: location from the item,
+# from hcloud_default_location, or assignment to an existing server.
+- name: Case - primary IPs with default location and server assignment
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    hcloud_default_location: hel1
+    hcloud_primary_ips:
+      - name: cp-01-ipv4
+        type: ipv4
+        location: fsn1
+        auto_delete: false
+        state: present
+      - name: cp-02-ipv4
+        type: ipv4
+      - name: proxy-01-ipv4
+        type: ipv4
+        server: proxy-01
+
+  roles:
+    - ansible-role-hetzner-cloud

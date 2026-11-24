@@ -1,6 +1,7 @@
 ---
 # Reset the mock to case.seed, run cases/<case.playbook> case.runs times and
-# expose the runs (mock_case_runs) and the request log (mock_requests).
+# expose the runs (mock_case_runs), the request log (mock_requests) and the
+# resulting resources (mock_state).
 - name: Reset the mock API state - {{ case.name }}
   ansible.builtin.uri:
     url: "{{ mock_url }}/__mock/reset"
@@ -27,6 +28,13 @@
     return_content: true
   register: mock_case_log
 
-- name: Expose the request log - {{ case.name }}
+- name: Read the mock API resources - {{ case.name }}
+  ansible.builtin.uri:
+    url: "{{ mock_url }}/__mock/state"
+    return_content: true
+  register: mock_case_state
+
+- name: Expose the request log and resources - {{ case.name }}
   ansible.builtin.set_fact:
     mock_requests: "{{ mock_case_log.json.requests }}"
+    mock_state: "{{ mock_case_state.json }}"

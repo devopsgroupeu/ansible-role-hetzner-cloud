@@ -271,9 +271,8 @@ hcloud_primary_ips:
 |---|---|---|---|
 | `name` | str | Yes | Primary IP name. |
 | `type` | str | Yes | IP version: `ipv4` or `ipv6`. |
-| `location` | str | No | Location slug. Required when `state: present` and no assignee set. Use `location` not `datacenter` (deprecated, removal 2026-07-01). |
-| `assignee_type` | str | No | Resource type the IP is assigned to (e.g. `server`). Optional as of collection v6.9.0. |
-| `assignee_id` | int | No | Server ID to pre-assign this IP to. |
+| `location` | str | No | Location slug. Defaults to `hcloud_default_location` unless `server` is set. Use `location` not `datacenter` (deprecated, removal 2026-07-01). |
+| `server` | str | No | Name of an existing, powered-off server to assign the IP to. When omitted, the current assignment is left unchanged. |
 | `auto_delete` | bool | No | Delete this IP when unassigned from its server. |
 | `delete_protection` | bool | No | Prevent accidental deletion. |
 | `labels` | dict | No | Arbitrary key/value labels. |
