@@ -86,12 +86,13 @@ Resources are created in dependency order within a single play:
 2. Networks → subnetworks
 3. Firewalls
 4. Placement groups
-5. Primary IPs (so servers can reference them)
+5. Primary IPs (so servers can reference them), volumes without `server`
+   (so servers can attach them at creation)
 6. Servers (reference SSH keys, firewalls, placement groups)
    - Firewall bindings (`apply_to`), so servers created in the run can be bound
 7. Server-network attachments (reference servers and networks)
 8. Floating IPs
-9. Volumes
+9. Volumes with `server`
 10. Load balancers (optional, alternative to a self-hosted load balancer)
 11. Outputs: set `hcloud_provisioned_servers` fact; render static inventory
 

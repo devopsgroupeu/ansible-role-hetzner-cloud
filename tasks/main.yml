@@ -136,6 +136,24 @@
         - hcloud
         - primary_ips
 
+    # Volumes without a server first, so servers can list them in 'volumes'.
+    - name: Manage unattached volumes
+      ansible.builtin.include_tasks:
+        file: volumes.yml
+        apply:
+          tags:
+            - hcloud
+            - volumes
+      vars:
+        _hcloud_phase: present
+        _hcloud_volume_pass: pre
+      when: >-
+        hcloud_volumes | map(attribute='state', default=hcloud_state)
+        | select('eq', 'present') | list | length > 0
+      tags:
+        - hcloud
+        - volumes
+
     - name: Manage servers
       ansible.builtin.include_tasks:
         file: servers.yml
@@ -221,7 +239,7 @@
         - hcloud
         - floating_ips
 
-    - name: Manage volumes
+    - name: Manage server-attached volumes
       ansible.builtin.include_tasks:
         file: volumes.yml
         apply:
@@ -230,6 +248,7 @@
             - volumes
       vars:
         _hcloud_phase: present
+        _hcloud_volume_pass: post
       when: >-
         hcloud_volumes | map(attribute='state', default=hcloud_state)
         | select('eq', 'present') | list | length > 0

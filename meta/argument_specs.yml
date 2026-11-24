@@ -437,7 +437,10 @@ argument_specs:
             elements: str
             required: false
             default: []
-            description: Volume names/IDs to attach at creation time.
+            description: >
+              Volume names/IDs to attach at creation time. Volumes in
+              hcloud_volumes without 'server' are created before the servers,
+              so they can be listed here in the same run.
           user_data:
             type: str
             required: false

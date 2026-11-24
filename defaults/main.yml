@@ -181,6 +181,8 @@ hcloud_floating_ips: []
 
 # ── Volumes ───────────────────────────────────────────────────────────────────
 # Persistent block storage. Required per-item: name, size (GB), location or server.
+# Volumes without server are created before the servers (so a server can list
+# them in its 'volumes'), volumes with server after the servers.
 # hcloud_volumes:
 #   - name: vault-data
 #     size: 20

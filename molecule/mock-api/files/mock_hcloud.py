@@ -126,6 +126,10 @@ def build(col, body):
             fobj["applied_to"].append({"type": "server", "server": {"id": oid}})
         for name in body.get("networks") or []:
             attach_network(base, ref("networks", name), None, [])
+        for vol in body.get("volumes") or []:
+            vobj = ref("volumes", vol)
+            vobj["server"] = oid
+            base["volumes"].append(vobj["id"])
     elif col == "primary_ips":
         base.update(ip=ipv4(), type=body.get("type", "ipv4"), assignee_id=body.get("assignee_id"),
                     assignee_type="server", auto_delete=bool(body.get("auto_delete")),

@@ -233,7 +233,7 @@ hcloud_servers:
 | `ssh_keys` | list[str] | `[]` | No | SSH key names to associate at creation time (create-time only). |
 | `firewalls` | list[str] | `[]` | No | Firewall names to apply. |
 | `placement_group` | str | — | No | Placement group name for anti-affinity scheduling. |
-| `volumes` | list[str] | `[]` | No | Volume names/IDs to attach at creation time. |
+| `volumes` | list[str] | `[]` | No | Volume names/IDs to attach at creation time. `hcloud_volumes` entries without `server` are created before the servers, so they can be listed here in the same run. |
 | `user_data` | str | — | No | Cloud-init user-data string. May contain join tokens; protected by `no_log`. |
 | `enable_ipv4` | bool | `true` | No | Assign a public IPv4 address. |
 | `enable_ipv6` | bool | `false` | No | Assign a public IPv6 address. |
@@ -339,7 +339,7 @@ hcloud_volumes:
 |---|---|---|---|
 | `name` | str | Yes | Volume name. |
 | `size` | int | No | Volume size in GB. Required when `state: present`. |
-| `location` | str | No | Location slug. Required when `state: present` and `server` is not set. |
+| `location` | str | No | Location slug. Required when `state: present` and `server` is not set. Such location-only volumes are created before the servers; volumes with `server` after them. |
 | `server` | str | No | Server name to attach this volume to. Use `volume_attachment` module for post-creation attach/detach. |
 | `format` | str | No | Filesystem to format at creation time (`ext4` or `xfs`). Applied once only. |
 | `automount` | bool | No | Automatically mount the volume on the server. |

@@ -274,3 +274,28 @@
           Applied to: {{ applied }}. Requests: {{ mock_requests }}
           Outputs: {{ mock_case_runs.results | map(attribute='stdout_lines') | map('last') | list }}
         success_msg: "Firewall bound to the new server and role=web; role=old removed; second run unchanged"
+
+    - name: Case - location-only volume attached at server creation, twice
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        case:
+          name: volumes_first
+          playbook: volumes_first.yml
+          runs: 2
+
+    - name: Assert the volume was created before the server that attaches it
+      vars:
+        server: "{{ mock_state.servers | selectattr('name', 'eq', 'db-01') | first | default({}) }}"
+        volume: "{{ mock_state.volumes | selectattr('name', 'eq', 'data-01') | first | default({}) }}"
+      ansible.builtin.assert:
+        that:
+          - mock_case_runs.results | map(attribute='rc') | list == [0, 0]
+          - mock_requests | select('match', 'POST /volumes$') | list | length == 1
+          - mock_requests.index('POST /volumes') < mock_requests.index('POST /servers')
+          - volume.server == server.id
+          - mock_case_runs.results[1].stdout_lines | last is search('changed=0')
+        fail_msg: >-
+          Location-only volume was not usable by a server in the same run.
+          Requests: {{ mock_requests }}
+          Outputs: {{ mock_case_runs.results | map(attribute='stdout_lines') | map('last') | list }}
+        success_msg: "Volume created before the server, attached at creation, second run unchanged"

@@ -13,6 +13,12 @@
 #
 # v5+ detach change: omitting 'server' no longer auto-detaches a volume.
 # Use hetzner.hcloud.volume_attachment with state=absent to detach explicitly.
+#
+# The present phase includes this file twice (_hcloud_volume_pass): 'pre'
+# before the servers creates volumes without 'server', so hcloud_servers[]
+# .volumes can attach them at server creation; 'post' after the servers
+# handles volumes that attach to a server. The absent phase passes no
+# _hcloud_volume_pass and handles every absent volume.
 # =============================================================================
 
 - name: Manage volumes
@@ -30,4 +36,8 @@
   loop_control:
     label: "{{ item.name }} ({{ item.state | default(hcloud_state) }})"
   register: hcloud_volume_results
-  when: (item.state | default(hcloud_state)) == _hcloud_phase
+  when:
+    - (item.state | default(hcloud_state)) == _hcloud_phase
+    - >-
+      _hcloud_volume_pass is not defined
+      or (_hcloud_volume_pass == 'post') == (item.server | default('', true) | length > 0)
