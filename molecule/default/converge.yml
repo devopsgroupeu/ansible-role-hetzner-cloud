@@ -65,6 +65,13 @@
         firewalls:
           - k8s-cp-fw
         placement_group: cp-spread
+        # Pass-through options (argument_specs must accept them)
+        ipv4: cp-01-ipv4
+        force: true
+        upgrade_disk: false
+        image_allow_deprecated: false
+        delete_protection: false
+        rebuild_protection: false
         # Sentinel: must never appear in task output (verify + CI grep).
         user_data: "#cloud-config\n# SENTINEL-USERDATA"
         labels:

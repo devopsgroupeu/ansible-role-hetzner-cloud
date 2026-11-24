@@ -412,3 +412,65 @@
           Invalid apply_to entries passed argument validation.
           Typo: '{{ apply_to_typo_msg }}'. Both keys: '{{ apply_to_both_msg }}'.
         success_msg: "apply_to typos and ambiguous entries are rejected"
+
+# =============================================================================
+# Sixth play: server entries reject unknown keys and a protection flag
+# without its pair (Hetzner sets delete and rebuild protection together).
+# =============================================================================
+- name: Verify invalid server entries are rejected
+  hosts: all
+  gather_facts: false
+
+  vars:
+    hcloud_provision: false
+
+  tasks:
+    - name: Run the role with an unknown server key
+      block:
+        - name: Include hetzner-cloud role (expected to fail argument validation)
+          ansible.builtin.include_role:
+            name: ansible-role-hetzner-cloud
+          vars:
+            hcloud_servers:
+              - name: demo-cp-01
+                server_type: cx23
+                state: started
+                rescue_mode: linux64
+
+        - name: Role accepted the unknown key (UNEXPECTED)
+          ansible.builtin.set_fact:
+            server_unknown_msg: ""
+      rescue:
+        - name: Record the argument validation error
+          ansible.builtin.set_fact:
+            server_unknown_msg: "{{ ansible_failed_result.msg | default('') }}"
+
+    - name: Run the role with delete_protection but no rebuild_protection
+      block:
+        - name: Include hetzner-cloud role (expected to fail argument validation)
+          ansible.builtin.include_role:
+            name: ansible-role-hetzner-cloud
+          vars:
+            hcloud_servers:
+              - name: demo-cp-01
+                server_type: cx23
+                delete_protection: true
+
+        - name: Role accepted the lone protection flag (UNEXPECTED)
+          ansible.builtin.set_fact:
+            server_protection_msg: ""
+      rescue:
+        - name: Record the argument validation error
+          ansible.builtin.set_fact:
+            server_protection_msg: "{{ ansible_failed_result.msg | default('') }}"
+
+    - name: Assert invalid server entries were rejected
+      ansible.builtin.assert:
+        that:
+          - "'rescue_mode' in server_unknown_msg"
+          - "'value of state must be one of' in server_unknown_msg"
+          - "'required together' in server_protection_msg"
+        fail_msg: >-
+          Invalid server entries passed argument validation.
+          Unknown key: '{{ server_unknown_msg }}'. Protection: '{{ server_protection_msg }}'.
+        success_msg: "Unknown server keys, power states and a lone protection flag are rejected"

@@ -118,6 +118,11 @@ def build(col, body):
                                           "dns_ptr": "static.example"}
                                          if net.get("enable_ipv4", True) else None),
                                 "ipv6": None, "floating_ips": [], "firewalls": []})
+        if net.get("ipv4"):
+            pip = ref("primary_ips", net["ipv4"])
+            pip["assignee_id"] = oid
+            base["public_net"]["ipv4"] = {"id": pip["id"], "ip": pip["ip"], "blocked": False,
+                                          "dns_ptr": "static.example"}
         if pg:
             pg["servers"].append(oid)
         for fw in body.get("firewalls") or []:
@@ -205,6 +210,8 @@ def run_action(col, obj, name, body):
     elif col == "firewalls" and name == "set_rules":
         obj["rules"] = body.get("rules") or []
         return {"actions": [action(name)]}
+    elif col == "servers" and name == "change_protection":
+        obj["protection"] = {k: body.get(k, obj["protection"][k]) for k in ("delete", "rebuild")}
     elif col == "volumes" and name == "attach":
         obj["server"] = body.get("server")
     elif col == "volumes" and name == "detach":

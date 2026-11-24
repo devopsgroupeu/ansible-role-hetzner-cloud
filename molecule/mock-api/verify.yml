@@ -342,3 +342,33 @@
           Requests: {{ mock_requests }}
           Output: {{ mock_case_runs.results[0].stdout_lines | default([]) | last }}
         success_msg: "Preflight refused hetzner.hcloud 8.0.0"
+
+    - name: Case - server pass-through options, twice
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        case:
+          name: server_options
+          playbook: server_options.yml
+          runs: 2
+
+    - name: Assert private networks, Primary IP and protection reached the API
+      vars:
+        net: "{{ mock_state.networks | selectattr('name', 'eq', 'priv-net') | first | default({}) }}"
+        pip: "{{ mock_state.primary_ips | selectattr('name', 'eq', 'app-ipv4') | first | default({}) }}"
+        priv: "{{ mock_state.servers | selectattr('name', 'eq', 'priv-01') | first | default({}) }}"
+        app: "{{ mock_state.servers | selectattr('name', 'eq', 'app-01') | first | default({}) }}"
+      ansible.builtin.assert:
+        that:
+          - mock_case_runs.results | map(attribute='rc') | list == [0, 0]
+          - priv.public_net.ipv4 is none
+          - priv.private_net | map(attribute='network') | list == [net.id]
+          - priv.placement_group is none
+          - app.public_net.ipv4.id == pip.id
+          - pip.assignee_id == app.id
+          - app.protection.delete and app.protection.rebuild
+          - mock_case_runs.results[1].stdout_lines | last is search('changed=0')
+        fail_msg: >-
+          Server pass-through options were not applied or not idempotent.
+          Servers: {{ mock_state.servers }}
+          Outputs: {{ mock_case_runs.results | map(attribute='stdout_lines') | map('last') | list }}
+        success_msg: "private_networks, ipv4 Primary IP and protection applied; second run unchanged"

@@ -238,8 +238,18 @@ hcloud_servers:
 | `enable_ipv4` | bool | `true` | No | Assign a public IPv4 address. |
 | `enable_ipv6` | bool | `false` | No | Assign a public IPv6 address. |
 | `backups` | bool | `false` | No | Enable automatic backups. |
+| `ipv4` | str | - | No | Primary IP name/ID (from `hcloud_primary_ips`, created before servers) to use as the public IPv4. Changing it later needs `force: true`. |
+| `ipv6` | str | - | No | Primary IP name/ID to use as the public IPv6 (needs `enable_ipv6: true`). |
+| `private_networks` | list[str] | - | No | Networks attached at creation, e.g. for private-only servers (`enable_ipv4: false`, `enable_ipv6: false`). Authoritative when set: networks not listed are detached, so do not mix with `hcloud_server_networks` for the same server unless every network is listed. |
+| `force` | bool | - | No | Let the module power the server off for changes that need it (`server_type` resize, placement group, Primary IP). |
+| `upgrade_disk` | bool | - | No | Grow the disk on a `server_type` change (the server can then not be downgraded). |
+| `image_allow_deprecated` | bool | - | No | Allow creating from a deprecated image. |
+| `delete_protection` | bool | - | No | Protect from deletion. Must be set together with `rebuild_protection`. |
+| `rebuild_protection` | bool | - | No | Protect from rebuilds. Must be set together with `delete_protection`. |
 | `labels` | dict | `{}` | No | Labels. The managed-by label is always merged. Use `role`/`cluster` labels for dynamic inventory grouping. |
-| `state` | str | `hcloud_state` | No | Per-resource state override. |
+| `state` | str | `hcloud_state` | No | Per-resource state override (`present` or `absent`). |
+
+Power states (`started`, `stopped`, `restarted`, `rebuild`) and rescue mode are not wrapped by this role; use `hetzner.hcloud.server` directly for those.
 
 ---
 

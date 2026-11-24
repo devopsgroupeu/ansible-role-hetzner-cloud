@@ -1,0 +1,35 @@
+---
+# Server pass-through options: a private-only server attached to a network at
+# creation, and a server using a Primary IP created in the same run, with
+# delete/rebuild protection.
+- name: Case - server pass-through options
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    hcloud_networks:
+      - name: priv-net
+        ip_range: "10.50.0.0/16"
+    hcloud_primary_ips:
+      - name: app-ipv4
+        type: ipv4
+        location: fsn1
+    hcloud_servers:
+      - name: priv-01
+        server_type: cx23
+        enable_ipv4: false
+        private_networks:
+          - priv-net
+        user_data: ""
+        placement_group: ""
+      - name: app-01
+        server_type: cx23
+        location: fsn1
+        ipv4: app-ipv4
+        delete_protection: true
+        rebuild_protection: true
+
+  roles:
+    - ansible-role-hetzner-cloud

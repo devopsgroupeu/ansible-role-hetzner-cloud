@@ -141,6 +141,15 @@ hcloud_placement_groups: []
 #     backups: false
 #     labels: {role: control-plane, cluster: prod}
 #     state: present
+# Optional pass-through keys (omitted unless set):
+#     ipv4: cp-01-ipv4            # Primary IP name from hcloud_primary_ips
+#     ipv6: cp-01-ipv6
+#     private_networks: [prod-net] # authoritative: unlisted networks detach
+#     force: true                 # allow power-off for resize / IP changes
+#     upgrade_disk: false         # grow the disk on a server_type change
+#     image_allow_deprecated: false
+#     delete_protection: true     # set together with rebuild_protection
+#     rebuild_protection: true
 hcloud_servers: []
 
 # ── Server ↔ private network attachments ─────────────────────────────────────
