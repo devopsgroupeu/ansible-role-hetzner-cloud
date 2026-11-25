@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# server_networks.yml — attach servers to private networks
+# server_networks.yml - attach servers to private networks
 #
 # Module: hetzner.hcloud.server_network
 # Loop:   hcloud_server_networks

@@ -1,13 +1,13 @@
 ---
 # =============================================================================
-# validate.yml — configuration assertions (always runs; no API calls)
+# validate.yml - configuration assertions (always runs; no API calls)
 #
 # Tags: always (imported with tags: always from main.yml)
 #
 # Guards enforced here:
-#   1. API token present — only checked when hcloud_provision is true
+#   1. API token present - only checked when hcloud_provision is true
 #   2. hcloud_state value is valid
-#   3. Teardown guard — abort if any resource targets absent without explicit flag
+#   3. Teardown guard - abort if any resource targets absent without explicit flag
 #   4. Required fields per resource list
 #   5. Firewall 'server' bindings agree with the server's 'firewalls' list
 #   6. Inventory output prerequisites
@@ -58,7 +58,7 @@
     (hcloud_load_balancers | map(attribute='services', default=[]) | flatten | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
     (hcloud_load_balancers | map(attribute='targets', default=[]) | flatten | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0)
 
-- name: Validate required fields — SSH keys
+- name: Validate required fields - SSH keys
   ansible.builtin.assert:
     that:
       - item.name is defined and item.name | length > 0
@@ -72,7 +72,7 @@
     label: "{{ item.name | default('UNNAMED') }}"
   when: hcloud_ssh_keys | length > 0
 
-- name: Validate required fields — networks
+- name: Validate required fields - networks
   ansible.builtin.assert:
     that:
       - item.name is defined and item.name | length > 0
@@ -86,7 +86,7 @@
     label: "{{ item.name | default('UNNAMED') }}"
   when: hcloud_networks | length > 0
 
-- name: Validate required fields — subnetworks
+- name: Validate required fields - subnetworks
   ansible.builtin.assert:
     that:
       - item.network is defined and item.network | length > 0
@@ -102,7 +102,7 @@
     label: "{{ item.network | default('UNNAMED') }}/{{ item.ip_range | default('?') }}"
   when: hcloud_subnetworks | length > 0
 
-- name: Validate required fields — firewalls
+- name: Validate required fields - firewalls
   ansible.builtin.assert:
     that:
       - item.name is defined and item.name | length > 0
@@ -141,7 +141,7 @@
     - (item.0.state | default(hcloud_state)) == 'present'
     - (_hcloud_fw_server.state | default(hcloud_state)) == 'present'
 
-- name: Validate required fields — placement groups
+- name: Validate required fields - placement groups
   ansible.builtin.assert:
     that:
       - item.name is defined and item.name | length > 0
@@ -155,7 +155,7 @@
     label: "{{ item.name | default('UNNAMED') }}"
   when: hcloud_placement_groups | length > 0
 
-- name: Validate required fields — servers
+- name: Validate required fields - servers
   ansible.builtin.assert:
     that:
       - item.name is defined and item.name | length > 0
@@ -172,7 +172,7 @@
   when: hcloud_servers | length > 0
   no_log: "{{ hcloud_no_log }}"
 
-- name: Validate required fields — server network attachments
+- name: Validate required fields - server network attachments
   ansible.builtin.assert:
     that:
       - item.server is defined and item.server | length > 0
@@ -186,7 +186,7 @@
     label: "{{ item.server | default('UNNAMED') }}/{{ item.network | default('?') }}"
   when: hcloud_server_networks | length > 0
 
-- name: Validate required fields — primary IPs
+- name: Validate required fields - primary IPs
   ansible.builtin.assert:
     that:
       - item.name is defined and item.name | length > 0
@@ -200,7 +200,7 @@
     label: "{{ item.name | default('UNNAMED') }}"
   when: hcloud_primary_ips | length > 0
 
-- name: Validate required fields — floating IPs
+- name: Validate required fields - floating IPs
   ansible.builtin.assert:
     that:
       - item.name is defined and item.name | length > 0
@@ -216,7 +216,7 @@
     label: "{{ item.name | default('UNNAMED') }}"
   when: hcloud_floating_ips | length > 0
 
-- name: Validate required fields — volumes
+- name: Validate required fields - volumes
   ansible.builtin.assert:
     that:
       - item.name is defined and item.name | length > 0
@@ -230,7 +230,7 @@
     label: "{{ item.name | default('UNNAMED') }}"
   when: hcloud_volumes | length > 0
 
-- name: Validate required fields — load balancers
+- name: Validate required fields - load balancers
   ansible.builtin.assert:
     that:
       - item.name is defined and item.name | length > 0

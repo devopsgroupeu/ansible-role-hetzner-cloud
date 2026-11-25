@@ -228,15 +228,15 @@ hcloud_servers:
 
 | Sub-key | Type | Default | Required | Description |
 |---|---|---|---|---|
-| `name` | str | — | Yes | Server name (unique in the project). |
+| `name` | str | - | Yes | Server name (unique in the project). |
 | `server_type` | str | - | No | Server type slug (e.g. `cx23`, `cx33`, `cx43`). Required when `state: present`. |
 | `image` | str | `hcloud_default_image` | No | OS image slug. |
 | `location` | str | `hcloud_default_location` | No | Location slug. Placement is by location only (Hetzner removed `datacenter` on 2026-07-01). |
 | `ssh_keys` | list[str] | `[]` | No | SSH key names to associate at creation time (create-time only). |
 | `firewalls` | list[str] | `[]` | No | Firewall names to apply. When set, the module enforces it as the server's complete list and removes any other firewall, so it must include every firewall that binds this server through `apply_to` `server` (validation rejects a mismatch). |
-| `placement_group` | str | — | No | Placement group name for anti-affinity scheduling. |
+| `placement_group` | str | - | No | Placement group name for anti-affinity scheduling. |
 | `volumes` | list[str] | `[]` | No | Volume names/IDs to attach at creation time. `hcloud_volumes` entries without `server` are created before the servers, so they can be listed here in the same run. |
-| `user_data` | str | — | No | Cloud-init user-data string. May contain join tokens; protected by `no_log`. |
+| `user_data` | str | - | No | Cloud-init user-data string. May contain join tokens; protected by `no_log`. |
 | `enable_ipv4` | bool | `true` | No | Assign a public IPv4 address. |
 | `enable_ipv6` | bool | `false` | No | Assign a public IPv6 address. |
 | `backups` | bool | `false` | No | Enable automatic backups. |
@@ -363,7 +363,7 @@ hcloud_volumes:
 
 ## Load Balancers (`hcloud_load_balancers`)
 
-Managed load balancers — an alternative to a self-hosted load balancer. Off by default.
+Managed load balancers - an alternative to a self-hosted load balancer. Off by default.
 
 ```yaml
 hcloud_load_balancers:

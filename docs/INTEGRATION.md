@@ -144,7 +144,7 @@ so private IPs are filled in on the first run. Absent servers are left out.
 Run your configuration plays against the produced groups with either hand-off.
 
 With the dynamic inventory plugin (`hcloud.yml` is your hcloud inventory plugin
-config — you provide this file; see
+config - you provide this file; see
 [hcloud inventory plugin docs](https://docs.ansible.com/ansible/latest/collections/hetzner/hcloud/hcloud_inventory.html)):
 
 ```bash

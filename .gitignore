@@ -26,7 +26,7 @@ __pycache__/
 # Logs
 *.log
 
-# Secrets — never commit tokens or Ansible Vault files
+# Secrets - never commit tokens or Ansible Vault files
 *.vault
 vault.yml
 .env

@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# verify.yml — assert offline validation passed and no API was called
+# verify.yml - assert offline validation passed and no API was called
 #
 # Phase 4: verifies that:
 #   - hcloud_provisioned_servers fact is defined and is an empty list (offline)
@@ -67,8 +67,8 @@
         that:
           - hcloud_provisioned_servers | length == 0
         fail_msg: >-
-          hcloud_provisioned_servers is not empty — API calls may have occurred.
-        success_msg: "hcloud_provisioned_servers=[] confirmed — no resources were provisioned"
+          hcloud_provisioned_servers is not empty - API calls may have occurred.
+        success_msg: "hcloud_provisioned_servers=[] confirmed - no resources were provisioned"
 
     - name: Stat the rendered inventory file
       ansible.builtin.stat:
@@ -114,10 +114,10 @@
 # Second play: exercise the POPULATED branches of hcloud_inventory.yml.j2.
 # The offline converge renders empty groups (hcloud_provisioned_servers=[]),
 # so the per-host loops are never covered. Here we stub the fact with fake
-# servers and render the template directly (still fully offline — no API).
+# servers and render the template directly (still fully offline - no API).
 # The first play's include_role set hcloud_provisioned_servers=[] as a host
 # fact, so we must override it with set_fact (a later set_fact wins over an
-# earlier one; play vars would not — host facts outrank them).
+# earlier one; play vars would not - host facts outrank them).
 # =============================================================================
 - name: Verify populated inventory render (offline, stubbed servers)
   hosts: all

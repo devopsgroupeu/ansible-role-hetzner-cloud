@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# outputs.yml — expose role facts and optionally write a static inventory
+# outputs.yml - expose role facts and optionally write a static inventory
 #
 # Safe offline: _hcloud_server_refresh is only registered when hcloud_provision
 # is true. When the offline molecule scenario runs (hcloud_provision: false)

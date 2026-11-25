@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# converge.yml — render/validate only, NO Hetzner API calls
+# converge.yml - render/validate only, NO Hetzner API calls
 #
 # hcloud_provision: false is the hard gate. The role runs validate.yml and
 # preflight.yml then stops before any hetzner.hcloud.* API call is made.
@@ -11,12 +11,12 @@
 # hcloud_provisioned_servers=[] (no real API calls, no server results).
 # =============================================================================
 
-- name: Converge (render/validate only — no Hetzner API)
+- name: Converge (render/validate only - no Hetzner API)
   hosts: all
   gather_facts: true
 
   vars:
-    # OFFLINE GATE — must remain false in this scenario
+    # OFFLINE GATE - must remain false in this scenario
     hcloud_provision: false
 
     # Exercise inventory rendering offline

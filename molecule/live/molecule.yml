@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# molecule/live/molecule.yml — LIVE delegated scenario
+# molecule/live/molecule.yml - LIVE delegated scenario
 #
 # IMPORTANT: This scenario creates REAL Hetzner Cloud resources.
 # It is NOT part of default CI. It requires a valid HCLOUD_TOKEN and will

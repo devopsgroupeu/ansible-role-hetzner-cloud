@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# placement_groups.yml — create/manage placement groups
+# placement_groups.yml - create/manage placement groups
 #
 # Module: hetzner.hcloud.placement_group
 # Loop:   hcloud_placement_groups

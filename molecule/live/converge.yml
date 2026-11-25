@@ -1,20 +1,20 @@
 ---
 # =============================================================================
-# molecule/live/converge.yml — LIVE provisioning converge
+# molecule/live/converge.yml - LIVE provisioning converge
 #
 # CREATES REAL HETZNER CLOUD RESOURCES. Needs HCLOUD_TOKEN in environment.
 # Uses cheapest type (cx23) in nbg1 to minimise cost.
 # `molecule test -s live` always destroys resources after verify.
 # =============================================================================
 
-- name: Converge (live — provisions real Hetzner resources)
+- name: Converge (live - provisions real Hetzner resources)
   hosts: all
   connection: local
   gather_facts: false
   become: false
 
   vars:
-    # Live gate — must remain true for this scenario
+    # Live gate - must remain true for this scenario
     hcloud_provision: true
 
     # Suppress noisy output by default; set false only when debugging

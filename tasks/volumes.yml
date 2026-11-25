@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# volumes.yml — create/manage persistent block storage volumes
+# volumes.yml - create/manage persistent block storage volumes
 #
 # Module: hetzner.hcloud.volume
 # Loop:   hcloud_volumes

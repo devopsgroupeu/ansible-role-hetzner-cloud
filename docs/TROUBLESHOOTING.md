@@ -140,7 +140,7 @@ loop_control:
 
 **Cause:** `hcloud_allow_teardown: false` (the default) prevents any accidental destruction.
 
-**Fix:** Always pass teardown permission explicitly on the CLI — never set it to `true` in a vars file committed to the repo:
+**Fix:** Always pass teardown permission explicitly on the CLI - never set it to `true` in a vars file committed to the repo:
 
 ```bash
 ansible-playbook teardown.yml \
@@ -177,7 +177,7 @@ Deleting a subnet or attachment whose parent is already gone is treated as done,
 
 The `default` molecule scenario is deliberately offline-safe. It sets `hcloud_provision: false`, which stops the role before any `hetzner.hcloud.*` module is invoked. No token is needed.
 
-Do not attempt to use `--check` mode as an offline substitute — the collection still authenticates and queries the live API even under `--check`.
+Do not attempt to use `--check` mode as an offline substitute - the collection still authenticates and queries the live API even under `--check`.
 
 ### `molecule test -s live` requires a real token
 

@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# molecule/live/destroy.yml — always-destroy teardown for live scenario
+# molecule/live/destroy.yml - always-destroy teardown for live scenario
 #
 # Removes all resources created by converge.yml in a single pass: the role
 # deletes absent items in reverse dependency order (attachment, server,

@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# molecule/live/verify.yml — assert real resources exist in Hetzner API
+# molecule/live/verify.yml - assert real resources exist in Hetzner API
 #
 # Requires HCLOUD_TOKEN. Runs hetzner.hcloud.*_info modules to query live state.
 # =============================================================================

@@ -1,12 +1,12 @@
 ---
 # =============================================================================
-# examples/teardown.yml — safe teardown walkthrough
+# examples/teardown.yml - safe teardown walkthrough
 #
 # Always scope with --tags to avoid accidentally destroying everything at once.
 # hcloud_allow_teardown: true is REQUIRED for any state: absent run.
 #
 # Usage:
-#   # Dry-run (syntax check only — does NOT call API, no --check):
+#   # Dry-run (syntax check only - does NOT call API, no --check):
 #   ansible-playbook examples/teardown.yml --syntax-check
 #
 #   # Destroy servers only:
@@ -30,7 +30,7 @@
     hcloud_provision: true
     hcloud_state: absent
 
-    # REQUIRED for any state: absent run — pass on CLI, never hardcode true here
+    # REQUIRED for any state: absent run - pass on CLI, never hardcode true here
     hcloud_allow_teardown: false
 
     # Mirror your provisioning play for the resources you want to remove.

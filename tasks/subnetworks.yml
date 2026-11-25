@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# subnetworks.yml — create/manage subnets within private networks
+# subnetworks.yml - create/manage subnets within private networks
 #
 # Module: hetzner.hcloud.subnetwork
 # Loop:   hcloud_subnetworks

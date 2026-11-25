@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# ansible-role-hetzner-cloud — vars/main.yml
+# ansible-role-hetzner-cloud - vars/main.yml
 #
 # Internal constants (high precedence). Rarely edited by consumers.
 # Tunables belong in defaults/main.yml.

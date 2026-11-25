@@ -1,10 +1,10 @@
 ---
 # =============================================================================
-# molecule/default/molecule.yml — offline render/validate scenario
+# molecule/default/molecule.yml - offline render/validate scenario
 #
 # No HCLOUD_TOKEN is required or used. hcloud_provision: false in converge.yml
 # stops the role before any hetzner.hcloud.* API call is made.
-# check_mode is NOT the offline gate — the provision flag is.
+# check_mode is NOT the offline gate - the provision flag is.
 # =============================================================================
 
 dependency:

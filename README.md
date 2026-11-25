@@ -116,10 +116,10 @@ All tunables are prefixed `hcloud_*`. Full documented defaults are in [`defaults
 
 | Variable | Type | Default | Description |
 |---|---|---|---|
-| `hcloud_api_token` | str | `$HCLOUD_TOKEN` | API token — source from Vault/env, never hardcode |
-| `hcloud_provision` | bool | `true` | Master gate — set `false` for offline/validate-only runs (no token needed) |
+| `hcloud_api_token` | str | `$HCLOUD_TOKEN` | API token - source from Vault/env, never hardcode |
+| `hcloud_provision` | bool | `true` | Master gate - set `false` for offline/validate-only runs (no token needed) |
 | `hcloud_state` | str | `present` | Global default state (`present`\|`absent`) |
-| `hcloud_allow_teardown` | bool | `false` | Hard guard — must be `true` to allow any `state: absent` |
+| `hcloud_allow_teardown` | bool | `false` | Hard guard - must be `true` to allow any `state: absent` |
 | `hcloud_no_log` | bool | `true` | Suppress sensitive output; set `false` for debugging only |
 | `hcloud_default_location` | str | `fsn1` | Fallback location slug for servers/IPs |
 | `hcloud_default_image` | str | `debian-12` | Fallback OS image for servers |
@@ -199,7 +199,7 @@ export PATH="$HOME/.venvs/ansible-roles/bin:$PATH"
 molecule test -s default
 ```
 
-`check_mode` is **not** a substitute for the offline gate — `hcloud.*` modules authenticate and query live state even under `--check`.
+`check_mode` is **not** a substitute for the offline gate - `hcloud.*` modules authenticate and query live state even under `--check`.
 
 The `molecule/teardown-gate/` scenario is also fully offline (no `HCLOUD_TOKEN`). It proves the destructive-action safety gate fires: with `hcloud_state: absent` and `hcloud_allow_teardown: false`, the role must abort before any API call.
 
@@ -221,7 +221,7 @@ The `molecule/live/` scenario creates real Hetzner Cloud resources and requires 
 
 ## Examples
 
-- [`examples/ha_cluster.yml`](examples/ha_cluster.yml) — full HA Kubernetes cluster topology (3 control-plane + 2 workers + private network + firewalls + floating IP)
+- [`examples/ha_cluster.yml`](examples/ha_cluster.yml) - full HA Kubernetes cluster topology (3 control-plane + 2 workers + private network + firewalls + floating IP)
 - [`examples/teardown.yml`](examples/teardown.yml) - safe teardown walkthrough (single pass, reverse dependency order handled by the role)
 - [`examples/inventory/hcloud.yml`](examples/inventory/hcloud.yml) - dynamic inventory plugin config that groups the role's servers by `role` label
 
@@ -229,9 +229,9 @@ The `molecule/live/` scenario creates real Hetzner Cloud resources and requires 
 
 ## Inventory output
 
-After provisioning, this role emits a labeled inventory — via the dynamic
+After provisioning, this role emits a labeled inventory - via the dynamic
 `hetzner.hcloud` inventory plugin or an optional static file
-(`hcloud_write_inventory: true`) — that your downstream plays consume by
+(`hcloud_write_inventory: true`) - that your downstream plays consume by
 group/label.
 
 See [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for the inventory hand-off details.

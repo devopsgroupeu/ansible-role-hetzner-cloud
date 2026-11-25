@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# servers.yml — create/manage compute instances
+# servers.yml - create/manage compute instances
 #
 # Module: hetzner.hcloud.server
 # Loop:   hcloud_servers

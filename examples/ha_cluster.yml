@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# examples/ha_cluster.yml — full HA Kubernetes cluster topology
+# examples/ha_cluster.yml - full HA Kubernetes cluster topology
 #
 # Provisions: 3 control-plane + 2 worker nodes + private network + firewall
 # + placement group + floating IP (for a load-balancer VIP).
@@ -15,7 +15,7 @@
   become: false
 
   vars:
-    # Source from HashiCorp Vault or Ansible Vault — never hardcode
+    # Source from HashiCorp Vault or Ansible Vault - never hardcode
     # hcloud_api_token: "{{ lookup('community.hashi_vault.vault_kv2_get', 'hetzner/token').secret.value }}"
 
     hcloud_provision: true

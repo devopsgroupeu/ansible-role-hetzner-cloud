@@ -62,7 +62,7 @@ flowchart TD
 
 The role assigns servers to inventory groups based on the `role` label applied
 at server creation time. Label *values* and group *names* are illustrative
-examples — choose whatever names your downstream plays consume:
+examples - choose whatever names your downstream plays consume:
 
 | Hetzner label | Inventory group (example) |
 |---|---|

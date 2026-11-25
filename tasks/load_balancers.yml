@@ -1,12 +1,12 @@
 ---
 # =============================================================================
-# load_balancers.yml — managed load balancers
+# load_balancers.yml - managed load balancers
 #
 # Module chain per hcloud_load_balancers item:
-#   1. hetzner.hcloud.load_balancer        — create / ensure LB exists
-#   2. hetzner.hcloud.load_balancer_network — optional private network attach
-#   3. hetzner.hcloud.load_balancer_service — one task per item.services entry
-#   4. hetzner.hcloud.load_balancer_target  — one task per item.targets entry
+#   1. hetzner.hcloud.load_balancer        - create / ensure LB exists
+#   2. hetzner.hcloud.load_balancer_network - optional private network attach
+#   3. hetzner.hcloud.load_balancer_service - one task per item.services entry
+#   4. hetzner.hcloud.load_balancer_target  - one task per item.targets entry
 #
 # Gate: called only when hcloud_load_balancers | length > 0 and hcloud_provision
 #       (both enforced in main.yml's block condition).

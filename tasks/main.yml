@@ -1,9 +1,9 @@
 ---
 # =============================================================================
-# main.yml — role orchestrator
+# main.yml - role orchestrator
 #
 # Execution order:
-#   1. validate.yml  (tags: always — always runs, pure asserts, no API)
+#   1. validate.yml  (tags: always - always runs, pure asserts, no API)
 #   2. preflight.yml (checks collection availability, no API)
 #   3. Per-resource includes (only when hcloud_provision), in two phases:
 #      present items in creation order, then absent items in reverse

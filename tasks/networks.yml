@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# networks.yml — create/manage private RFC1918 networks
+# networks.yml - create/manage private RFC1918 networks
 #
 # Module: hetzner.hcloud.network
 # Loop:   hcloud_networks

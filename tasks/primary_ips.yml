@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# primary_ips.yml — create/manage pre-allocated stable public IPs
+# primary_ips.yml - create/manage pre-allocated stable public IPs
 #
 # Module: hetzner.hcloud.primary_ip
 # Loop:   hcloud_primary_ips

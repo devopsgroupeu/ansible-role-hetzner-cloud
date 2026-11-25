@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# ansible-role-hetzner-cloud — defaults/main.yml
+# ansible-role-hetzner-cloud - defaults/main.yml
 #
 # All tunables namespaced hcloud_*. This file is the public variable contract;
 # every key here has a matching entry in meta/argument_specs.yml.

@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# ssh_keys.yml — upload SSH public keys to Hetzner Cloud
+# ssh_keys.yml - upload SSH public keys to Hetzner Cloud
 #
 # Module: hetzner.hcloud.ssh_key
 # Loop:   hcloud_ssh_keys

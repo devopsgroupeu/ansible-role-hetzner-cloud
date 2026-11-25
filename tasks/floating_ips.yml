@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# floating_ips.yml — create/manage location-scoped floating IPs
+# floating_ips.yml - create/manage location-scoped floating IPs
 #
 # Module: hetzner.hcloud.floating_ip
 # Loop:   hcloud_floating_ips

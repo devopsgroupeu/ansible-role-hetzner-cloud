@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# meta/argument_specs.yml — role argument specification
+# meta/argument_specs.yml - role argument specification
 #
 # 1:1 with defaults/main.yml. Every defaults key has an entry here.
 # ansible-core validates passed vars against this spec before any task runs,
@@ -463,7 +463,7 @@ argument_specs:
             type: str
             required: false
             description: >
-              Cloud-init user-data string. May contain join tokens — handled
+              Cloud-init user-data string. May contain join tokens - handled
               with no_log: true by the task.
           enable_ipv4:
             type: bool
