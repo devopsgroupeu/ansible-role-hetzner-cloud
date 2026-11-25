@@ -251,6 +251,9 @@
           playbook: firewall_bindings.yml
           runs: 2
           seed:
+            servers:
+              - id: 610
+                name: old-01
             firewalls:
               - id: 600
                 name: web-fw
@@ -260,10 +263,14 @@
                   - type: label_selector
                     label_selector:
                       selector: role=old
+                  - type: server
+                    server:
+                      id: 610
 
     # Two apply_to_resources calls on the first run: the label selector
     # before the server is created (no window without the firewall), then
-    # the server entry once web-01 exists.
+    # the server entry once web-01 exists. Two remove_from_resources calls:
+    # role=old and old-01; the missing gone-01 must not stop the old-01 one.
     - name: Assert the firewall was bound and the absent binding removed once
       vars:
         server_id: "{{ (mock_state.servers | selectattr('name', 'eq', 'web-01') | first).id }}"
@@ -277,7 +284,7 @@
           - >-
             mock_requests.index('POST /firewalls/600/actions/apply_to_resources')
             < mock_requests.index('POST /servers')
-          - mock_requests | select('match', 'POST /firewalls/600/actions/remove_from_resources') | list | length == 1
+          - mock_requests | select('match', 'POST /firewalls/600/actions/remove_from_resources') | list | length == 2
           - selectors == ['role=web']
           - bound_servers == [server_id | int]
           - mock_case_runs.results[1].stdout_lines | last is search('changed=0')
@@ -285,7 +292,7 @@
           Firewall bindings are wrong or not idempotent.
           Applied to: {{ applied }}. Requests: {{ mock_requests }}
           Outputs: {{ mock_case_runs.results | map(attribute='stdout_lines') | map('last') | list }}
-        success_msg: "role=web bound before the server was created, then the new server; role=old removed; second run unchanged"
+        success_msg: "role=web bound before the server was created, then the new server; role=old and old-01 removed despite gone-01; second run unchanged"
 
     - name: Case - apply_to server next to the server's firewalls list, twice
       ansible.builtin.include_tasks: tasks/run_case.yml

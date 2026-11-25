@@ -39,25 +39,44 @@
     - (item.state | default(hcloud_state)) != 'absent'
     - _hcloud_fw_targets | length > 0
 
-- name: Unbind firewalls from apply_to entries set to absent - {{ _hcloud_fw_key }}
+- name: Unbind firewalls from label selectors set to absent
   hetzner.hcloud.firewall_resource:
     firewall: "{{ item.name }}"
-    servers: "{{ _hcloud_fw_targets if _hcloud_fw_key == 'server' else omit }}"
-    label_selectors: "{{ _hcloud_fw_targets if _hcloud_fw_key == 'label_selector' else omit }}"
+    label_selectors: "{{ _hcloud_fw_targets }}"
     state: absent
   vars:
-    _hcloud_fw_entries: >-
+    _hcloud_fw_targets: >-
       {{ item.apply_to | default([]) | selectattr('state', 'defined')
-         | selectattr('state', 'eq', 'absent') | list }}
-    _hcloud_fw_targets: "{{ _hcloud_fw_entries | selectattr(_hcloud_fw_key, 'defined') | map(attribute=_hcloud_fw_key) | list }}"
+         | selectattr('state', 'eq', 'absent')
+         | selectattr('label_selector', 'defined')
+         | map(attribute='label_selector') | list }}
   loop: "{{ hcloud_firewalls }}"
   loop_control:
-    label: "{{ item.name }} {{ _hcloud_fw_key }} bindings to remove"
-  register: hcloud_firewall_unbind_results
+    label: "{{ item.name }} label selectors to remove"
   when:
+    - _hcloud_fw_key == 'label_selector'
     - (item.state | default(hcloud_state)) == _hcloud_phase
     - (item.state | default(hcloud_state)) != 'absent'
     - _hcloud_fw_targets | length > 0
+
+# One call per server: the module resolves every server before it removes
+# anything, so a single missing server would otherwise skip the others.
+- name: Unbind firewalls from servers set to absent
+  hetzner.hcloud.firewall_resource:
+    firewall: "{{ item.0.name }}"
+    servers:
+      - "{{ item.1.server }}"
+    state: absent
+  loop: "{{ hcloud_firewalls | subelements('apply_to', skip_missing=True) }}"
+  loop_control:
+    label: "{{ item.0.name }} -> {{ item.1.server | default('') }}"
+  register: hcloud_firewall_unbind_results
+  when:
+    - _hcloud_fw_key == 'server'
+    - item.1.server is defined
+    - (item.1.state | default('present')) == 'absent'
+    - (item.0.state | default(hcloud_state)) == _hcloud_phase
+    - (item.0.state | default(hcloud_state)) != 'absent'
   # A server that is already gone has no binding left, so unbinding it is a
   # no-op; this keeps re-runs after a server deletion green.
   failed_when: >-

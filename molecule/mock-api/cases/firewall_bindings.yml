@@ -1,6 +1,7 @@
 ---
 # Bind a firewall to a server created in the same run and to a label
-# selector, and remove an old label-selector binding set to absent.
+# selector, and remove old bindings set to absent: a label selector, a server
+# that is already gone (listed first) and a server that is still bound.
 - name: Case - firewall bindings
   hosts: localhost
   connection: local
@@ -15,6 +16,10 @@
           - server: web-01
           - label_selector: "role=web"
           - label_selector: "role=old"
+            state: absent
+          - server: gone-01
+            state: absent
+          - server: old-01
             state: absent
     hcloud_servers:
       - name: web-01
