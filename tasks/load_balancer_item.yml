@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# load_balancer_item.yml — per-LB sub-task included by load_balancers.yml
+# load_balancer_item.yml - per-LB sub-task included by load_balancers.yml
 #
 # Loop var: hcloud_lb_item (set by the calling include_tasks loop)
 #
@@ -9,9 +9,11 @@
 #   2. Optionally attach to a private network (when hcloud_lb_item.network set).
 #   3. Configure each service (protocol / port mapping).
 #   4. Register each target (server, label_selector, or ip).
+# Steps 2-4 are skipped for an absent LB: deleting the LB removes its network
+# attachment, services and targets, and they would fail on a missing LB.
 # =============================================================================
 
-- name: Manage load balancer resource — {{ hcloud_lb_item.name }}
+- name: Manage load balancer resource - {{ hcloud_lb_item.name }}
   hetzner.hcloud.load_balancer:
     name: "{{ hcloud_lb_item.name }}"
     load_balancer_type: "{{ hcloud_lb_item.load_balancer_type | default(omit) }}"
@@ -22,14 +24,16 @@
     labels: "{{ {hcloud_managed_label_key: hcloud_managed_label_value} | combine(hcloud_lb_item.labels | default({})) }}"
     state: "{{ hcloud_lb_item.state | default(hcloud_state) }}"
 
-- name: Attach load balancer to private network — {{ hcloud_lb_item.name }}
+- name: Attach load balancer to private network - {{ hcloud_lb_item.name }}
   hetzner.hcloud.load_balancer_network:
     load_balancer: "{{ hcloud_lb_item.name }}"
     network: "{{ hcloud_lb_item.network }}"
     state: "{{ hcloud_lb_item.state | default(hcloud_state) }}"
-  when: hcloud_lb_item.network is defined and hcloud_lb_item.network | length > 0
+  when:
+    - (hcloud_lb_item.state | default(hcloud_state)) != 'absent'
+    - hcloud_lb_item.network is defined and hcloud_lb_item.network | length > 0
 
-- name: Configure load balancer services — {{ hcloud_lb_item.name }}
+- name: Configure load balancer services - {{ hcloud_lb_item.name }}
   hetzner.hcloud.load_balancer_service:
     load_balancer: "{{ hcloud_lb_item.name }}"
     protocol: "{{ svc_item.protocol }}"
@@ -41,9 +45,11 @@
   loop_control:
     loop_var: svc_item
     label: "{{ hcloud_lb_item.name }}/{{ svc_item.protocol }}:{{ svc_item.listen_port }}"
-  when: hcloud_lb_item.services | default([]) | length > 0
+  when:
+    - (hcloud_lb_item.state | default(hcloud_state)) != 'absent'
+    - hcloud_lb_item.services | default([]) | length > 0
 
-- name: Register load balancer targets — {{ hcloud_lb_item.name }}
+- name: Register load balancer targets - {{ hcloud_lb_item.name }}
   hetzner.hcloud.load_balancer_target:
     load_balancer: "{{ hcloud_lb_item.name }}"
     type: "{{ tgt_item.type }}"
@@ -56,4 +62,6 @@
   loop_control:
     loop_var: tgt_item
     label: "{{ hcloud_lb_item.name }}/{{ tgt_item.type }}"
-  when: hcloud_lb_item.targets | default([]) | length > 0
+  when:
+    - (hcloud_lb_item.state | default(hcloud_state)) != 'absent'
+    - hcloud_lb_item.targets | default([]) | length > 0

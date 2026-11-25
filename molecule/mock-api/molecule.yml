@@ -1,0 +1,55 @@
+---
+# =============================================================================
+# molecule/mock-api/molecule.yml - real module calls against a local mock API
+#
+# Runs the role on the controller (connection: local) with every
+# hetzner.hcloud.* module pointed at an in-memory stand-in of the Hetzner API
+# (files/mock_hcloud.py, bound to 127.0.0.1 only). No real token, no cloud
+# resources. prepare.yml starts and seeds the mock, converge + idempotence
+# drive the role, verify.yml asserts on the mock's request log and runs the
+# extra cases in cases/, cleanup.yml stops the mock.
+#
+# Override the port with MOCK_HCLOUD_PORT if 18742 is taken.
+# =============================================================================
+
+dependency:
+  name: galaxy
+  options:
+    requirements-file: requirements.yml
+
+driver:
+  name: default
+  options:
+    managed: false
+
+platforms:
+  - name: hcloud-mock-api
+
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/.."
+    HCLOUD_ENDPOINT: "http://127.0.0.1:${MOCK_HCLOUD_PORT:-18742}"
+    HCLOUD_TOKEN: dummy-token-for-the-local-mock
+    MOCK_HCLOUD_PORT: "${MOCK_HCLOUD_PORT:-18742}"
+  inventory:
+    hosts:
+      all:
+        hosts:
+          localhost:
+            ansible_connection: local
+
+verifier:
+  name: ansible
+
+scenario:
+  test_sequence:
+    - dependency
+    - destroy
+    - syntax
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - cleanup
+    - destroy

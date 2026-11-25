@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# verify.yml — assert offline validation passed and no API was called
+# verify.yml - assert offline validation passed and no API was called
 #
 # Phase 4: verifies that:
 #   - hcloud_provisioned_servers fact is defined and is an empty list (offline)
@@ -30,7 +30,7 @@
         ip_range: "10.0.1.0/24"
     hcloud_servers:
       - name: demo-cp-01
-        server_type: cx22
+        server_type: cx23
         image: debian-12
         location: nbg1
         labels:
@@ -67,8 +67,8 @@
         that:
           - hcloud_provisioned_servers | length == 0
         fail_msg: >-
-          hcloud_provisioned_servers is not empty — API calls may have occurred.
-        success_msg: "hcloud_provisioned_servers=[] confirmed — no resources were provisioned"
+          hcloud_provisioned_servers is not empty - API calls may have occurred.
+        success_msg: "hcloud_provisioned_servers=[] confirmed - no resources were provisioned"
 
     - name: Stat the rendered inventory file
       ansible.builtin.stat:
@@ -114,14 +114,18 @@
 # Second play: exercise the POPULATED branches of hcloud_inventory.yml.j2.
 # The offline converge renders empty groups (hcloud_provisioned_servers=[]),
 # so the per-host loops are never covered. Here we stub the fact with fake
-# servers and render the template directly (still fully offline — no API).
+# servers and render the template directly (still fully offline - no API).
 # The first play's include_role set hcloud_provisioned_servers=[] as a host
 # fact, so we must override it with set_fact (a later set_fact wins over an
-# earlier one; play vars would not — host facts outrank them).
+# earlier one; play vars would not - host facts outrank them).
 # =============================================================================
 - name: Verify populated inventory render (offline, stubbed servers)
   hosts: all
   gather_facts: false
+  # The template is rendered outside the role, so load the shipped defaults
+  # (hcloud_inventory_groups) explicitly.
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
 
   tasks:
     - name: Stub provisioned servers (overrides the empty fact from the role)
@@ -139,6 +143,17 @@
               role: worker
             private_networks_info:
               - ip: "10.0.1.21"
+          - name: db-01
+            ipv4_address: "203.0.113.30"
+            labels:
+              role: database
+            private_networks_info:
+              - ip: "10.0.1.31"
+          - name: misc-01
+            ipv4_address: "203.0.113.40"
+            labels:
+              cluster: demo
+            private_networks_info: []
 
     - name: Render inventory template with stubbed provisioned servers
       ansible.builtin.template:
@@ -170,3 +185,322 @@
         success_msg: >-
           Populated inventory render correct: cp-01 in server_nodes,
           worker-01 in agent_nodes, with public + private IPs.
+
+    - name: Assert servers matching no group land in ungrouped
+      ansible.builtin.assert:
+        that:
+          - populated_parsed.all.children.ungrouped.hosts['db-01'].ansible_host == '203.0.113.30'
+          - populated_parsed.all.children.ungrouped.hosts['db-01'].hcloud_private_ip == '10.0.1.31'
+          - populated_parsed.all.children.ungrouped.hosts['misc-01'].ansible_host == '203.0.113.40'
+          - populated_parsed.all.children.ungrouped.hosts | length == 2
+        fail_msg: >-
+          Unmatched servers were dropped. Rendered content:
+          {{ populated_inv.content | b64decode }}
+        success_msg: "db-01 (role=database) and misc-01 (no role) are in ungrouped"
+
+    - name: Render inventory template with custom inventory groups
+      ansible.builtin.template:
+        src: "{{ lookup('ansible.builtin.env', 'MOLECULE_PROJECT_DIRECTORY') }}/templates/hcloud_inventory.yml.j2"
+        dest: /tmp/hcloud_inventory_custom.yml
+        mode: "0640"
+      vars:
+        hcloud_inventory_groups:
+          databases: database
+
+    - name: Read the custom-group inventory back as structured YAML
+      ansible.builtin.slurp:
+        src: /tmp/hcloud_inventory_custom.yml
+      register: custom_inv
+
+    - name: Assert custom inventory groups are honoured
+      vars:
+        custom_parsed: "{{ custom_inv.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - custom_parsed.all.children.keys() | list | sort == ['databases', 'ungrouped']
+          - custom_parsed.all.children.databases.hosts.keys() | list == ['db-01']
+          - custom_parsed.all.children.ungrouped.hosts | length == 3
+        fail_msg: >-
+          Custom inventory groups not honoured. Rendered content:
+          {{ custom_inv.content | b64decode }}
+        success_msg: "Custom hcloud_inventory_groups map rendered as configured"
+
+# =============================================================================
+# Third play: an invalid server entry that carries user_data must fail
+# validation without echoing user_data (it may hold join tokens).
+# no_log censors what is displayed, not registered data, so the in-memory
+# failed result still holds the item. We assert on the failure message (which
+# Ansible prints even under no_log); CI greps the whole molecule output for
+# the sentinel to prove nothing is displayed.
+# =============================================================================
+- name: Verify invalid server entries do not leak user_data
+  hosts: all
+  gather_facts: false
+
+  vars:
+    hcloud_provision: false
+    hcloud_servers:
+      - name: demo-cp-01
+        user_data: "#cloud-config\n# SENTINEL-USERDATA"
+
+  tasks:
+    - name: Run the role with a server missing server_type
+      block:
+        - name: Include hetzner-cloud role (expected to fail validation)
+          ansible.builtin.include_role:
+            name: ansible-role-hetzner-cloud
+
+        - name: Role completed without failing (UNEXPECTED)
+          ansible.builtin.set_fact:
+            userdata_validation_failed: false
+      rescue:
+        - name: Record that validation failed as expected
+          ansible.builtin.set_fact:
+            userdata_validation_failed: true
+            userdata_failed_msgs: "{{ ansible_failed_result.results | default([]) | map(attribute='msg', default='') | join(' ') }}"
+
+    - name: Assert validation failed and user_data stayed hidden
+      ansible.builtin.assert:
+        that:
+          - userdata_validation_failed | bool
+          - "'demo-cp-01' in userdata_failed_msgs"
+          - "'SENTINEL' not in userdata_failed_msgs"
+        fail_msg: >-
+          Invalid server entry either passed validation or leaked user_data
+          into the failure message.
+        success_msg: "Invalid server entry failed validation without leaking user_data"
+
+# =============================================================================
+# Fourth play: build outputs from stubbed server_info results the way
+# main.yml registers them, including null entries, skipped items, a server
+# without public IPv4 and one without private networks.
+# =============================================================================
+- name: Verify outputs from refreshed server state (offline, stubbed)
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    - name: Stub the refreshed server_info results
+      ansible.builtin.set_fact:
+        _hcloud_server_refresh:
+          results:
+            - hcloud_server_info:
+                - name: cp-01
+                  ipv4_address: "203.0.113.10"
+                  labels:
+                    role: control-plane
+                  private_networks_info:
+                    - name: demo-net
+                      ip: "10.0.1.11"
+            - hcloud_server_info:
+                - name: wk-01
+                  ipv4_address: null
+                  labels:
+                    role: worker
+                  private_networks_info:
+                    - name: demo-net
+                      ip: "10.0.1.21"
+            - hcloud_server_info:
+                - name: px-01
+                  ipv4_address: "203.0.113.30"
+                  labels:
+                    role: proxy
+                  private_networks_info: []
+            - hcloud_server_info:
+                - null
+            - hcloud_server_info: []
+            - skipped: true
+              item:
+                name: gone-01
+
+    - name: Run the role outputs on the stubbed results
+      ansible.builtin.include_role:
+        name: ansible-role-hetzner-cloud
+        tasks_from: outputs.yml
+      vars:
+        hcloud_write_inventory: true
+        hcloud_inventory_path: /tmp/hcloud_inventory_refresh.yml
+
+    - name: Read the rendered inventory
+      ansible.builtin.slurp:
+        src: /tmp/hcloud_inventory_refresh.yml
+      register: refresh_inv
+
+    - name: Parse the rendered inventory
+      ansible.builtin.set_fact:
+        refresh_parsed: "{{ refresh_inv.content | b64decode | from_yaml }}"
+
+    - name: Assert outputs skip null entries and every host has an address
+      vars:
+        refresh_hosts: >-
+          {{ refresh_parsed.all.children.values() | map(attribute='hosts')
+             | select('mapping') | map('dict2items') | flatten | items2dict }}
+      ansible.builtin.assert:
+        that:
+          - hcloud_provisioned_servers | map(attribute='name') | list == ['cp-01', 'wk-01', 'px-01']
+          - refresh_hosts | length == 3
+          - refresh_hosts.values() | map(attribute='ansible_host') | select | list | length == 3
+          - refresh_hosts['cp-01'].ansible_host == '203.0.113.10'
+          - refresh_hosts['wk-01'].ansible_host == '10.0.1.21'
+          - refresh_hosts['px-01'].ansible_host == '203.0.113.30'
+          - refresh_hosts['cp-01'].hcloud_private_ip == '10.0.1.11'
+        fail_msg: >-
+          Outputs from refreshed state are wrong. Fact:
+          {{ hcloud_provisioned_servers }} Rendered:
+          {{ refresh_inv.content | b64decode }}
+        success_msg: "Outputs skip null/skipped entries and every host has ansible_host"
+
+# =============================================================================
+# Fifth play: firewall apply_to entries are validated by argument_specs, so a
+# typo or an entry with both server and label_selector fails instead of
+# binding nothing; validate.yml rejects a server binding that the server's
+# own 'firewalls' list contradicts.
+# =============================================================================
+- name: Verify invalid firewall apply_to entries are rejected
+  hosts: all
+  gather_facts: false
+
+  vars:
+    hcloud_provision: false
+
+  tasks:
+    - name: Run the role with an apply_to key typo
+      block:
+        - name: Include hetzner-cloud role (expected to fail argument validation)
+          ansible.builtin.include_role:
+            name: ansible-role-hetzner-cloud
+          vars:
+            hcloud_firewalls:
+              - name: k8s-cp-fw
+                apply_to:
+                  - server: demo-cp-01
+                  - lable_selector: "role=control-plane"
+
+        - name: Role accepted the typo (UNEXPECTED)
+          ansible.builtin.set_fact:
+            apply_to_typo_msg: ""
+      rescue:
+        - name: Record the argument validation error
+          ansible.builtin.set_fact:
+            apply_to_typo_msg: "{{ ansible_failed_result.msg | default('') }}"
+
+    - name: Run the role with server and label_selector in one entry
+      block:
+        - name: Include hetzner-cloud role (expected to fail argument validation)
+          ansible.builtin.include_role:
+            name: ansible-role-hetzner-cloud
+          vars:
+            hcloud_firewalls:
+              - name: k8s-cp-fw
+                apply_to:
+                  - server: demo-cp-01
+                    label_selector: "role=control-plane"
+
+        - name: Role accepted the ambiguous entry (UNEXPECTED)
+          ansible.builtin.set_fact:
+            apply_to_both_msg: ""
+      rescue:
+        - name: Record the argument validation error
+          ansible.builtin.set_fact:
+            apply_to_both_msg: "{{ ansible_failed_result.msg | default('') }}"
+
+    # The server module enforces 'firewalls' as complete, so this binding
+    # would be removed and re-added on every run.
+    - name: Run the role with an apply_to server missing from the server firewalls
+      block:
+        - name: Include hetzner-cloud role (expected to fail validation)
+          ansible.builtin.include_role:
+            name: ansible-role-hetzner-cloud
+          vars:
+            hcloud_firewalls:
+              - name: base-fw
+              - name: web-fw
+                apply_to:
+                  - server: web-01
+            hcloud_servers:
+              - name: web-01
+                server_type: cx23
+                firewalls:
+                  - base-fw
+
+        - name: Role accepted the conflicting binding (UNEXPECTED)
+          ansible.builtin.set_fact:
+            apply_to_conflict_msg: ""
+      rescue:
+        - name: Record the validation error
+          ansible.builtin.set_fact:
+            apply_to_conflict_msg: "{{ ansible_failed_result.results | default([]) | selectattr('failed', 'defined') | selectattr('failed') | map(attribute='msg') | join(' ') }}"
+
+    - name: Assert invalid apply_to entries were rejected
+      ansible.builtin.assert:
+        that:
+          - "'lable_selector' in apply_to_typo_msg"
+          - "'mutually exclusive' in apply_to_both_msg"
+          - "\"Firewall 'web-fw' has an apply_to entry for server 'web-01'\" in apply_to_conflict_msg"
+        fail_msg: >-
+          Invalid apply_to entries passed validation.
+          Typo: '{{ apply_to_typo_msg }}'. Both keys: '{{ apply_to_both_msg }}'.
+          Conflict with server firewalls: '{{ apply_to_conflict_msg }}'.
+        success_msg: "apply_to typos, ambiguous entries and server firewalls conflicts are rejected"
+
+# =============================================================================
+# Sixth play: server entries reject unknown keys and a protection flag
+# without its pair (Hetzner sets delete and rebuild protection together).
+# =============================================================================
+- name: Verify invalid server entries are rejected
+  hosts: all
+  gather_facts: false
+
+  vars:
+    hcloud_provision: false
+
+  tasks:
+    - name: Run the role with an unknown server key
+      block:
+        - name: Include hetzner-cloud role (expected to fail argument validation)
+          ansible.builtin.include_role:
+            name: ansible-role-hetzner-cloud
+          vars:
+            hcloud_servers:
+              - name: demo-cp-01
+                server_type: cx23
+                state: started
+                rescue_mode: linux64
+
+        - name: Role accepted the unknown key (UNEXPECTED)
+          ansible.builtin.set_fact:
+            server_unknown_msg: ""
+      rescue:
+        - name: Record the argument validation error
+          ansible.builtin.set_fact:
+            server_unknown_msg: "{{ ansible_failed_result.msg | default('') }}"
+
+    - name: Run the role with delete_protection but no rebuild_protection
+      block:
+        - name: Include hetzner-cloud role (expected to fail argument validation)
+          ansible.builtin.include_role:
+            name: ansible-role-hetzner-cloud
+          vars:
+            hcloud_servers:
+              - name: demo-cp-01
+                server_type: cx23
+                delete_protection: true
+
+        - name: Role accepted the lone protection flag (UNEXPECTED)
+          ansible.builtin.set_fact:
+            server_protection_msg: ""
+      rescue:
+        - name: Record the argument validation error
+          ansible.builtin.set_fact:
+            server_protection_msg: "{{ ansible_failed_result.msg | default('') }}"
+
+    - name: Assert invalid server entries were rejected
+      ansible.builtin.assert:
+        that:
+          - "'rescue_mode' in server_unknown_msg"
+          - "'value of state must be one of' in server_unknown_msg"
+          - "'required together' in server_protection_msg"
+        fail_msg: >-
+          Invalid server entries passed argument validation.
+          Unknown key: '{{ server_unknown_msg }}'. Protection: '{{ server_protection_msg }}'.
+        success_msg: "Unknown server keys, power states and a lone protection flag are rejected"

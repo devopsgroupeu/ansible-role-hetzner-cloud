@@ -50,6 +50,7 @@ An empty token aborts the role with a clear error when `hcloud_provision: true`.
 | `hcloud_managed_label_value` | str | `ansible-hetzner-cloud` | No | Label value paired with `hcloud_managed_label_key` on all created resources. |
 | `hcloud_write_inventory` | bool | `false` | No | When `true`, renders `templates/hcloud_inventory.yml.j2` to `hcloud_inventory_path`. Useful for pipelines without a dynamic inventory plugin. |
 | `hcloud_inventory_path` | str | `""` | No | Destination file path for the rendered static inventory. Required (non-empty) when `hcloud_write_inventory: true`. |
+| `hcloud_inventory_groups` | dict | `{server_nodes: control-plane, agent_nodes: worker, proxy_hosts: proxy, vault: vault}` | No | Static inventory groups as group name -> value of the servers' `role` label. Servers whose role label matches no value, or that have none, are written under `ungrouped`. |
 
 ---
 
@@ -115,7 +116,7 @@ hcloud_subnetworks:
 | Sub-key | Type | Required | Description |
 |---|---|---|---|
 | `network` | str | Yes | Parent network name. |
-| `type` | str | Yes | Subnet type: `cloud`, `server`, or `vswitch`. |
+| `type` | str | Yes | Subnet type: `cloud`, `server`, or `vswitch`. `server` is deprecated by Hetzner (removed 2027-04-15); use `cloud`, which is functionally equivalent. |
 | `network_zone` | str | Yes | Network zone (e.g. `eu-central`). |
 | `ip_range` | str | Yes | CIDR block for this subnet. |
 | `vswitch_id` | int | No | vSwitch ID (required when `type: vswitch`). |
@@ -125,7 +126,7 @@ hcloud_subnetworks:
 
 ## Firewalls (`hcloud_firewalls`)
 
-Firewall resources with embedded rules and optional label-selector bindings.
+Firewall resources with embedded rules and optional bindings to servers or label selectors.
 
 ```yaml
 hcloud_firewalls:
@@ -140,6 +141,7 @@ hcloud_firewalls:
         description: kube-apiserver
     apply_to:
       - label_selector: "role=control-plane"
+      - server: bastion-01
     labels:
       cluster: prod
     state: present
@@ -149,7 +151,7 @@ hcloud_firewalls:
 |---|---|---|---|
 | `name` | str | Yes | Firewall name. |
 | `rules` | list[dict] | No | List of firewall rule dicts (see below). |
-| `apply_to` | list[dict] | No | Label-selector or server bindings to auto-attach the firewall to. |
+| `apply_to` | list[dict] | No | Bindings to servers or label selectors (see below). Label selectors are bound before the servers are created, so a matching new server has the firewall from the start; `server` entries are bound after the servers, so a server created in the same run can be bound. |
 | `labels` | dict | No | Arbitrary key/value labels. |
 | `state` | str | No | Per-resource state override. |
 
@@ -163,6 +165,18 @@ Firewall rule sub-keys:
 | `source_ips` | list[str] | CIDR list (for `in` rules). |
 | `destination_ips` | list[str] | CIDR list (for `out` rules). |
 | `description` | str | Human-readable label. |
+
+`apply_to` entry sub-keys (each entry needs exactly one of `label_selector` or `server`; unknown keys are rejected):
+
+| Key | Type | Description |
+|---|---|---|
+| `label_selector` | str | Label selector to bind, e.g. `role=control-plane`. |
+| `server` | str | Server name to bind. |
+| `state` | str | `present` (default) or `absent`. |
+
+Bindings are additive: deleting an entry from `apply_to` does **not** unbind the firewall, so its rules keep applying. To remove a binding, keep the entry with `state: absent` (this requires `hcloud_allow_teardown: true`), run the role, then delete the entry.
+
+A `server` entry must agree with that server's own `firewalls` list in `hcloud_servers`, if the server sets one: `hetzner.hcloud.server` enforces that list as complete, so a firewall bound through `apply_to` but missing from the list would be removed and re-added on every run (and the server would briefly lose its rules). Validation fails on a mismatch: list the firewall in the server's `firewalls` (or drop `firewalls` from that server) for a present binding, and remove it from the list for a binding set to `absent`.
 
 ---
 
@@ -195,7 +209,7 @@ Compute instances. SSH key, firewall, and network resources must be created befo
 ```yaml
 hcloud_servers:
   - name: cp-01
-    server_type: cx32
+    server_type: cx33
     image: debian-12
     location: fsn1
     ssh_keys:
@@ -214,20 +228,30 @@ hcloud_servers:
 
 | Sub-key | Type | Default | Required | Description |
 |---|---|---|---|---|
-| `name` | str | — | Yes | Server name (unique in the project). |
-| `server_type` | str | — | No | Server type slug (e.g. `cx22`, `cx32`, `cx42`). Required when `state: present`. |
+| `name` | str | - | Yes | Server name (unique in the project). |
+| `server_type` | str | - | No | Server type slug (e.g. `cx23`, `cx33`, `cx43`). Required when `state: present`. |
 | `image` | str | `hcloud_default_image` | No | OS image slug. |
-| `location` | str | `hcloud_default_location` | No | Location slug. Use `location`, not the deprecated `datacenter` (removal after 2026-07-01). |
+| `location` | str | `hcloud_default_location` | No | Location slug. Placement is by location only (Hetzner removed `datacenter` on 2026-07-01). |
 | `ssh_keys` | list[str] | `[]` | No | SSH key names to associate at creation time (create-time only). |
-| `firewalls` | list[str] | `[]` | No | Firewall names to apply. |
-| `placement_group` | str | — | No | Placement group name for anti-affinity scheduling. |
-| `volumes` | list[str] | `[]` | No | Volume names/IDs to attach at creation time. |
-| `user_data` | str | — | No | Cloud-init user-data string. May contain join tokens; protected by `no_log`. |
+| `firewalls` | list[str] | `[]` | No | Firewall names to apply. When set, the module enforces it as the server's complete list and removes any other firewall, so it must include every firewall that binds this server through `apply_to` `server` (validation rejects a mismatch). |
+| `placement_group` | str | - | No | Placement group name for anti-affinity scheduling. |
+| `volumes` | list[str] | `[]` | No | Volume names/IDs to attach at creation time. `hcloud_volumes` entries without `server` are created before the servers, so they can be listed here in the same run. |
+| `user_data` | str | - | No | Cloud-init user-data string. May contain join tokens; protected by `no_log`. |
 | `enable_ipv4` | bool | `true` | No | Assign a public IPv4 address. |
 | `enable_ipv6` | bool | `false` | No | Assign a public IPv6 address. |
 | `backups` | bool | `false` | No | Enable automatic backups. |
-| `labels` | dict | `{}` | No | Labels. The managed-by label is always merged. Use `role`/`cluster` labels for dynamic inventory grouping. |
-| `state` | str | `hcloud_state` | No | Per-resource state override. |
+| `ipv4` | str | - | No | Primary IP name/ID (from `hcloud_primary_ips`, created before servers) to use as the public IPv4. Changing it later needs `force: true`. |
+| `ipv6` | str | - | No | Primary IP name/ID to use as the public IPv6 (needs `enable_ipv6: true`). |
+| `private_networks` | list[str] | - | No | Networks attached at creation, e.g. for private-only servers (`enable_ipv4: false`, `enable_ipv6: false`). Authoritative when set: networks not listed are detached, so do not mix with `hcloud_server_networks` for the same server unless every network is listed. |
+| `force` | bool | - | No | Let the module power the server off for changes that need it (`server_type` resize, placement group, Primary IP). |
+| `upgrade_disk` | bool | - | No | Grow the disk on a `server_type` change (the server can then not be downgraded). |
+| `image_allow_deprecated` | bool | - | No | Allow creating from a deprecated image. |
+| `delete_protection` | bool | - | No | Protect from deletion. Must be set together with `rebuild_protection`. |
+| `rebuild_protection` | bool | - | No | Protect from rebuilds. Must be set together with `delete_protection`. |
+| `labels` | dict | `{}` | No | Labels, merged over the managed-by label (a user label with the same key overrides it). Use `role`/`cluster` labels for dynamic inventory grouping. |
+| `state` | str | `hcloud_state` | No | Per-resource state override (`present` or `absent`). |
+
+Power states (`started`, `stopped`, `restarted`, `rebuild`) and rescue mode are not wrapped by this role; use `hetzner.hcloud.server` directly for those.
 
 ---
 
@@ -271,9 +295,8 @@ hcloud_primary_ips:
 |---|---|---|---|
 | `name` | str | Yes | Primary IP name. |
 | `type` | str | Yes | IP version: `ipv4` or `ipv6`. |
-| `location` | str | No | Location slug. Required when `state: present` and no assignee set. Use `location` not `datacenter` (deprecated, removal 2026-07-01). |
-| `assignee_type` | str | No | Resource type the IP is assigned to (e.g. `server`). Optional as of collection v6.9.0. |
-| `assignee_id` | int | No | Server ID to pre-assign this IP to. |
+| `location` | str | No | Location slug. Defaults to `hcloud_default_location` unless `server` is set. Placement is by location only (Hetzner removed `datacenter` on 2026-07-01). |
+| `server` | str | No | Name of an existing, powered-off server to assign the IP to. When omitted, the current assignment is left unchanged. |
 | `auto_delete` | bool | No | Delete this IP when unassigned from its server. |
 | `delete_protection` | bool | No | Prevent accidental deletion. |
 | `labels` | dict | No | Arbitrary key/value labels. |
@@ -301,11 +324,12 @@ hcloud_floating_ips:
 | `name` | str | Yes | Floating IP name. |
 | `type` | str | Yes | IP version: `ipv4` or `ipv6`. |
 | `home_location` | str | No | Location slug to anchor the IP to. Required when `state: present` unless `server` is set. |
-| `server` | str | No | Server name to assign the floating IP to initially. An external load balancer reassigns it during failover. |
+| `server` | str | No | Server name to assign the floating IP to. When omitted, the current assignment is kept: runtime assignment is owned by keepalived (or another external load balancer), and the role never detaches the IP on re-runs. |
+| `unassign` | bool | No | Set `true` to detach the floating IP from its current server. Default `false`. |
 | `description` | str | No | Human-readable description. |
 | `delete_protection` | bool | No | Prevent accidental deletion. |
 | `labels` | dict | No | Arbitrary key/value labels. |
-| `state` | str | No | Per-resource state override. |
+| `state` | str | No | Per-resource state override. `absent` unassigns the IP first, then deletes it (Hetzner rejects deleting an assigned IP). |
 
 ---
 
@@ -327,8 +351,8 @@ hcloud_volumes:
 |---|---|---|---|
 | `name` | str | Yes | Volume name. |
 | `size` | int | No | Volume size in GB. Required when `state: present`. |
-| `location` | str | No | Location slug. Required when `state: present` and `server` is not set. |
-| `server` | str | No | Server name to attach this volume to. Use `volume_attachment` module for post-creation attach/detach. |
+| `location` | str | No | Location slug. Required when `state: present` and `server` is not set. Such location-only volumes are created before the servers; volumes with `server` after them. |
+| `server` | str | No | Server name to attach this volume to. Omitting it never detaches; use the `hetzner.hcloud.volume_attachment` module (not wrapped by this role) to detach. |
 | `format` | str | No | Filesystem to format at creation time (`ext4` or `xfs`). Applied once only. |
 | `automount` | bool | No | Automatically mount the volume on the server. |
 | `delete_protection` | bool | No | Prevent accidental deletion. |
@@ -339,7 +363,7 @@ hcloud_volumes:
 
 ## Load Balancers (`hcloud_load_balancers`)
 
-Managed load balancers — an alternative to a self-hosted load balancer. Off by default.
+Managed load balancers - an alternative to a self-hosted load balancer. Off by default.
 
 ```yaml
 hcloud_load_balancers:

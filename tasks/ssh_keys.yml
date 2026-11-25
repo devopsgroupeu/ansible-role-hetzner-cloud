@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# ssh_keys.yml — upload SSH public keys to Hetzner Cloud
+# ssh_keys.yml - upload SSH public keys to Hetzner Cloud
 #
 # Module: hetzner.hcloud.ssh_key
 # Loop:   hcloud_ssh_keys
@@ -18,3 +18,4 @@
   loop_control:
     label: "{{ item.name }} ({{ item.state | default(hcloud_state) }})"
   register: hcloud_ssh_key_results
+  when: (item.state | default(hcloud_state)) == _hcloud_phase

@@ -1,0 +1,84 @@
+---
+# =============================================================================
+# firewall_bindings.yml - bind firewalls to servers and label selectors
+#
+# Module: hetzner.hcloud.firewall_resource
+# Loop:   hcloud_firewalls
+# Gate:   included twice by main.yml in the present phase, once per entry
+#         kind (_hcloud_fw_key): 'label_selector' right after the firewalls
+#         and before the servers, so Hetzner applies the firewall to a
+#         matching server when it is created; 'server' after the servers, so
+#         an entry can target a server created in the same run.
+#
+# Each apply_to entry holds exactly one of 'server' or 'label_selector'
+# (enforced by meta/argument_specs.yml). firewall_resource with
+# state=present only adds bindings: removing an entry from apply_to leaves
+# the old binding (and its open ports) in place. To unbind, keep the entry
+# with 'state: absent'; the teardown gate covers it.
+#
+# Absent firewalls are skipped: deleting the firewall removes its bindings.
+# =============================================================================
+
+- name: Bind firewalls to apply_to entries - {{ _hcloud_fw_key }}
+  hetzner.hcloud.firewall_resource:
+    firewall: "{{ item.name }}"
+    servers: "{{ _hcloud_fw_targets if _hcloud_fw_key == 'server' else omit }}"
+    label_selectors: "{{ _hcloud_fw_targets if _hcloud_fw_key == 'label_selector' else omit }}"
+    state: present
+  vars:
+    _hcloud_fw_entries: >-
+      {{ (item.apply_to | default([]) | rejectattr('state', 'defined') | list)
+         + (item.apply_to | default([]) | selectattr('state', 'defined')
+            | selectattr('state', 'eq', 'present') | list) }}
+    _hcloud_fw_targets: "{{ _hcloud_fw_entries | selectattr(_hcloud_fw_key, 'defined') | map(attribute=_hcloud_fw_key) | list }}"
+  loop: "{{ hcloud_firewalls }}"
+  loop_control:
+    label: "{{ item.name }} {{ _hcloud_fw_key }} bindings"
+  when:
+    - (item.state | default(hcloud_state)) == _hcloud_phase
+    - (item.state | default(hcloud_state)) != 'absent'
+    - _hcloud_fw_targets | length > 0
+
+- name: Unbind firewalls from label selectors set to absent
+  hetzner.hcloud.firewall_resource:
+    firewall: "{{ item.name }}"
+    label_selectors: "{{ _hcloud_fw_targets }}"
+    state: absent
+  vars:
+    _hcloud_fw_targets: >-
+      {{ item.apply_to | default([]) | selectattr('state', 'defined')
+         | selectattr('state', 'eq', 'absent')
+         | selectattr('label_selector', 'defined')
+         | map(attribute='label_selector') | list }}
+  loop: "{{ hcloud_firewalls }}"
+  loop_control:
+    label: "{{ item.name }} label selectors to remove"
+  when:
+    - _hcloud_fw_key == 'label_selector'
+    - (item.state | default(hcloud_state)) == _hcloud_phase
+    - (item.state | default(hcloud_state)) != 'absent'
+    - _hcloud_fw_targets | length > 0
+
+# One call per server: the module resolves every server before it removes
+# anything, so a single missing server would otherwise skip the others.
+- name: Unbind firewalls from servers set to absent
+  hetzner.hcloud.firewall_resource:
+    firewall: "{{ item.0.name }}"
+    servers:
+      - "{{ item.1.server }}"
+    state: absent
+  loop: "{{ hcloud_firewalls | subelements('apply_to', skip_missing=True) }}"
+  loop_control:
+    label: "{{ item.0.name }} -> {{ item.1.server | default('') }}"
+  register: hcloud_firewall_unbind_results
+  when:
+    - _hcloud_fw_key == 'server'
+    - item.1.server is defined
+    - (item.1.state | default('present')) == 'absent'
+    - (item.0.state | default(hcloud_state)) == _hcloud_phase
+    - (item.0.state | default(hcloud_state)) != 'absent'
+  # A server that is already gone has no binding left, so unbinding it is a
+  # no-op; this keeps re-runs after a server deletion green.
+  failed_when: >-
+    hcloud_firewall_unbind_results is failed
+    and 'does not exist' not in (hcloud_firewall_unbind_results.msg | default(''))

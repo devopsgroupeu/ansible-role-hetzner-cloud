@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# molecule/teardown-gate/molecule.yml — offline teardown-gate negative test
+# molecule/teardown-gate/molecule.yml - offline teardown-gate negative test
 #
 # Proves the destructive-action safety gate in validate.yml FIRES: with a
 # resource targeting state=absent and hcloud_allow_teardown=false, the role
@@ -9,7 +9,7 @@
 #
 # Fully offline: hcloud_provision: false (no HCLOUD_TOKEN, no API call). The
 # teardown gate is intentionally NOT guarded by hcloud_provision, so it still
-# fires offline. Only the NEGATIVE direction is tested here — the positive
+# fires offline. Only the NEGATIVE direction is tested here - the positive
 # (allow_teardown=true) direction would proceed to the live API.
 #
 # Idempotence is omitted: this scenario deliberately drives an abort path.

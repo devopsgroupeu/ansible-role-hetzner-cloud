@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# converge.yml — render/validate only, NO Hetzner API calls
+# converge.yml - render/validate only, NO Hetzner API calls
 #
 # hcloud_provision: false is the hard gate. The role runs validate.yml and
 # preflight.yml then stops before any hetzner.hcloud.* API call is made.
@@ -11,12 +11,12 @@
 # hcloud_provisioned_servers=[] (no real API calls, no server results).
 # =============================================================================
 
-- name: Converge (render/validate only — no Hetzner API)
+- name: Converge (render/validate only - no Hetzner API)
   hosts: all
   gather_facts: true
 
   vars:
-    # OFFLINE GATE — must remain false in this scenario
+    # OFFLINE GATE - must remain false in this scenario
     hcloud_provision: false
 
     # Exercise inventory rendering offline
@@ -57,7 +57,7 @@
 
     hcloud_servers:
       - name: demo-cp-01
-        server_type: cx22
+        server_type: cx23
         image: debian-12
         location: nbg1
         ssh_keys:
@@ -65,6 +65,15 @@
         firewalls:
           - k8s-cp-fw
         placement_group: cp-spread
+        # Pass-through options (argument_specs must accept them)
+        ipv4: cp-01-ipv4
+        force: true
+        upgrade_disk: false
+        image_allow_deprecated: false
+        delete_protection: false
+        rebuild_protection: false
+        # Sentinel: must never appear in task output (verify + CI grep).
+        user_data: "#cloud-config\n# SENTINEL-USERDATA"
         labels:
           role: control-plane
           cluster: demo

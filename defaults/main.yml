@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# ansible-role-hetzner-cloud — defaults/main.yml
+# ansible-role-hetzner-cloud - defaults/main.yml
 #
 # All tunables namespaced hcloud_*. This file is the public variable contract;
 # every key here has a matching entry in meta/argument_specs.yml.
@@ -53,6 +53,15 @@ hcloud_write_inventory: false
 # Required (non-empty) when hcloud_write_inventory is true.
 hcloud_inventory_path: ""
 
+# Static inventory groups: group name -> value of the servers' 'role' label.
+# Servers whose role label matches no value (or that have none) are written
+# under 'ungrouped'.
+hcloud_inventory_groups:
+  server_nodes: control-plane
+  agent_nodes: worker
+  proxy_hosts: proxy
+  vault: vault
+
 # ── SSH keys ──────────────────────────────────────────────────────────────────
 # List of SSH public key dicts to upload to Hetzner Cloud.
 # Required per-item: name, public_key (when state=present).
@@ -85,8 +94,9 @@ hcloud_networks: []
 hcloud_subnetworks: []
 
 # ── Firewalls ─────────────────────────────────────────────────────────────────
-# Firewall resources with embedded rules and optional label-selector bindings.
-# Required per-item: name.
+# Firewall resources with embedded rules and optional bindings (apply_to).
+# Required per-item: name. Each apply_to entry holds one of label_selector or
+# server. Bindings are additive: to unbind, keep the entry with state: absent.
 # hcloud_firewalls:
 #   - name: k8s-cp-fw
 #     rules:
@@ -97,6 +107,9 @@ hcloud_subnetworks: []
 #         description: kube-apiserver
 #     apply_to:
 #       - label_selector: "role=control-plane"
+#       - server: cp-01
+#       - label_selector: "role=old"
+#         state: absent
 #     labels: {}
 #     state: present
 hcloud_firewalls: []
@@ -115,7 +128,7 @@ hcloud_placement_groups: []
 # Compute instances. Required per-item: name, server_type (when state=present).
 # hcloud_servers:
 #   - name: cp-01
-#     server_type: cx32
+#     server_type: cx33
 #     image: "{{ hcloud_default_image }}"
 #     location: "{{ hcloud_default_location }}"
 #     ssh_keys: [ops-key]
@@ -128,6 +141,15 @@ hcloud_placement_groups: []
 #     backups: false
 #     labels: {role: control-plane, cluster: prod}
 #     state: present
+# Optional pass-through keys (omitted unless set):
+#     ipv4: cp-01-ipv4            # Primary IP name from hcloud_primary_ips
+#     ipv6: cp-01-ipv6
+#     private_networks: [prod-net] # authoritative: unlisted networks detach
+#     force: true                 # allow power-off for resize / IP changes
+#     upgrade_disk: false         # grow the disk on a server_type change
+#     image_allow_deprecated: false
+#     delete_protection: true     # set together with rebuild_protection
+#     rebuild_protection: true
 hcloud_servers: []
 
 # ── Server ↔ private network attachments ─────────────────────────────────────
@@ -143,14 +165,14 @@ hcloud_server_networks: []
 
 # ── Primary IPs ───────────────────────────────────────────────────────────────
 # Pre-created stable public IPs that survive server rebuild/deletion.
-# Required per-item: name, type (ipv4|ipv6), location (when state=present).
-# Use location (not the deprecated datacenter; removal scheduled 2026-07-01).
+# Required per-item: name, type (ipv4|ipv6). location defaults to
+# hcloud_default_location; set server to assign the IP to an existing,
+# powered-off server instead.
+# Placement is by location only (Hetzner removed 'datacenter' on 2026-07-01).
 # hcloud_primary_ips:
 #   - name: cp-01-ipv4
 #     type: ipv4
 #     location: fsn1
-#     assignee_type: server
-#     assignee_id: ~
 #     auto_delete: false
 #     state: present
 hcloud_primary_ips: []
@@ -162,18 +184,18 @@ hcloud_primary_ips: []
 #   - name: ingress-vip
 #     type: ipv4
 #     home_location: fsn1
-#     server: ""
 #     labels: {}
 #     state: present
 hcloud_floating_ips: []
 
 # ── Volumes ───────────────────────────────────────────────────────────────────
 # Persistent block storage. Required per-item: name, size (GB), location or server.
+# Volumes without server are created before the servers (so a server can list
+# them in its 'volumes'), volumes with server after the servers.
 # hcloud_volumes:
 #   - name: vault-data
 #     size: 20
 #     location: fsn1
-#     server: ""
 #     format: ext4
 #     automount: false
 #     state: present

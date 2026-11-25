@@ -1,12 +1,12 @@
 ---
 # =============================================================================
-# load_balancers.yml — managed load balancers
+# load_balancers.yml - managed load balancers
 #
 # Module chain per hcloud_load_balancers item:
-#   1. hetzner.hcloud.load_balancer        — create / ensure LB exists
-#   2. hetzner.hcloud.load_balancer_network — optional private network attach
-#   3. hetzner.hcloud.load_balancer_service — one task per item.services entry
-#   4. hetzner.hcloud.load_balancer_target  — one task per item.targets entry
+#   1. hetzner.hcloud.load_balancer        - create / ensure LB exists
+#   2. hetzner.hcloud.load_balancer_network - optional private network attach
+#   3. hetzner.hcloud.load_balancer_service - one task per item.services entry
+#   4. hetzner.hcloud.load_balancer_target  - one task per item.targets entry
 #
 # Gate: called only when hcloud_load_balancers | length > 0 and hcloud_provision
 #       (both enforced in main.yml's block condition).
@@ -16,8 +16,14 @@
 # =============================================================================
 
 - name: Manage load balancer
-  ansible.builtin.include_tasks: load_balancer_item.yml
+  ansible.builtin.include_tasks:
+    file: load_balancer_item.yml
+    apply:
+      tags:
+        - hcloud
+        - load_balancers
   loop: "{{ hcloud_load_balancers }}"
   loop_control:
     loop_var: hcloud_lb_item
     label: "{{ hcloud_lb_item.name }} ({{ hcloud_lb_item.state | default(hcloud_state) }})"
+  when: (hcloud_lb_item.state | default(hcloud_state)) == _hcloud_phase

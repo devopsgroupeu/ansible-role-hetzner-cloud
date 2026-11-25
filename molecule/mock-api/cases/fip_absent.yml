@@ -1,0 +1,18 @@
+---
+# Delete a floating IP that is still assigned to a server.
+- name: Case - delete an assigned floating IP
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    hcloud_allow_teardown: true
+    hcloud_floating_ips:
+      - name: ingress-vip
+        type: ipv4
+        home_location: nbg1
+        state: absent
+
+  roles:
+    - ansible-role-hetzner-cloud

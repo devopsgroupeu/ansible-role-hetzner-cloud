@@ -1,11 +1,19 @@
 ---
 # =============================================================================
-# servers.yml — create/manage compute instances
+# servers.yml - create/manage compute instances
 #
 # Module: hetzner.hcloud.server
 # Loop:   hcloud_servers
 # Gate:   called only when hcloud_servers | length > 0 and hcloud_provision
 #         (both enforced in main.yml)
+#
+# Optional keys are passed through only when set (default(omit, true)), so
+# an empty string from a copied example never reaches the module.
+# private_networks makes the module own the server's network list (it
+# detaches networks not listed); ipv4/ipv6 take Primary IP names created by
+# primary_ips.yml, which runs before this file. force allows a server_type
+# change (resize) or placement group/Primary IP change to power the server
+# off first.
 #
 # no_log is set here because user_data may contain join tokens or secrets.
 # This is the only task-level no_log needed for a non-token secret: the API
@@ -17,20 +25,29 @@
   hetzner.hcloud.server:
     name: "{{ item.name }}"
     server_type: "{{ item.server_type | default(omit) }}"
-    image: "{{ item.image | default(hcloud_default_image) }}"
+    image: "{{ item.image | default(hcloud_default_image, true) }}"
+    image_allow_deprecated: "{{ item.image_allow_deprecated | default(omit) }}"
     location: "{{ item.location | default(hcloud_default_location) }}"
     ssh_keys: "{{ item.ssh_keys | default([]) }}"
     firewalls: "{{ item.firewalls | default(omit) }}"
-    placement_group: "{{ item.placement_group | default(omit) }}"
+    placement_group: "{{ item.placement_group | default(omit, true) }}"
     volumes: "{{ item.volumes | default(omit) }}"
-    user_data: "{{ item.user_data | default(omit) }}"
+    user_data: "{{ item.user_data | default(omit, true) }}"
     enable_ipv4: "{{ item.enable_ipv4 | default(true) }}"
     enable_ipv6: "{{ item.enable_ipv6 | default(false) }}"
+    ipv4: "{{ item.ipv4 | default(omit, true) }}"
+    ipv6: "{{ item.ipv6 | default(omit, true) }}"
+    private_networks: "{{ item.private_networks | default(omit) }}"
     backups: "{{ item.backups | default(false) }}"
+    force: "{{ item.force | default(omit) }}"
+    upgrade_disk: "{{ item.upgrade_disk | default(omit) }}"
+    delete_protection: "{{ item.delete_protection | default(omit) }}"
+    rebuild_protection: "{{ item.rebuild_protection | default(omit) }}"
     labels: "{{ {hcloud_managed_label_key: hcloud_managed_label_value} | combine(item.labels | default({})) }}"
     state: "{{ item.state | default(hcloud_state) }}"
   loop: "{{ hcloud_servers }}"
   loop_control:
     label: "{{ item.name }} ({{ item.state | default(hcloud_state) }})"
   register: hcloud_server_results
+  when: (item.state | default(hcloud_state)) == _hcloud_phase
   no_log: "{{ hcloud_no_log }}"

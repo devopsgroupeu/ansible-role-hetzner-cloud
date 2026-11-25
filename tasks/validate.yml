@@ -1,15 +1,16 @@
 ---
 # =============================================================================
-# validate.yml — configuration assertions (always runs; no API calls)
+# validate.yml - configuration assertions (always runs; no API calls)
 #
 # Tags: always (imported with tags: always from main.yml)
 #
 # Guards enforced here:
-#   1. API token present — only checked when hcloud_provision is true
+#   1. API token present - only checked when hcloud_provision is true
 #   2. hcloud_state value is valid
-#   3. Teardown guard — abort if any resource targets absent without explicit flag
+#   3. Teardown guard - abort if any resource targets absent without explicit flag
 #   4. Required fields per resource list
-#   5. Inventory output prerequisites
+#   5. Firewall 'server' bindings agree with the server's 'firewalls' list
+#   6. Inventory output prerequisites
 # =============================================================================
 
 - name: Assert API token is present
@@ -46,15 +47,18 @@
     (hcloud_networks | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
     (hcloud_subnetworks | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
     (hcloud_firewalls | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
+    (hcloud_firewalls | map(attribute='apply_to', default=[]) | flatten | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
     (hcloud_placement_groups | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
     (hcloud_servers | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
     (hcloud_server_networks | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
     (hcloud_primary_ips | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
     (hcloud_floating_ips | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
     (hcloud_volumes | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
-    (hcloud_load_balancers | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0)
+    (hcloud_load_balancers | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
+    (hcloud_load_balancers | map(attribute='services', default=[]) | flatten | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0) or
+    (hcloud_load_balancers | map(attribute='targets', default=[]) | flatten | map(attribute='state', default='') | select('eq', 'absent') | list | length > 0)
 
-- name: Validate required fields — SSH keys
+- name: Validate required fields - SSH keys
   ansible.builtin.assert:
     that:
       - item.name is defined and item.name | length > 0
@@ -68,7 +72,7 @@
     label: "{{ item.name | default('UNNAMED') }}"
   when: hcloud_ssh_keys | length > 0
 
-- name: Validate required fields — networks
+- name: Validate required fields - networks
   ansible.builtin.assert:
     that:
       - item.name is defined and item.name | length > 0
@@ -82,7 +86,7 @@
     label: "{{ item.name | default('UNNAMED') }}"
   when: hcloud_networks | length > 0
 
-- name: Validate required fields — subnetworks
+- name: Validate required fields - subnetworks
   ansible.builtin.assert:
     that:
       - item.network is defined and item.network | length > 0
@@ -98,7 +102,7 @@
     label: "{{ item.network | default('UNNAMED') }}/{{ item.ip_range | default('?') }}"
   when: hcloud_subnetworks | length > 0
 
-- name: Validate required fields — firewalls
+- name: Validate required fields - firewalls
   ansible.builtin.assert:
     that:
       - item.name is defined and item.name | length > 0
@@ -110,7 +114,34 @@
     label: "{{ item.name | default('UNNAMED') }}"
   when: hcloud_firewalls | length > 0
 
-- name: Validate required fields — placement groups
+# hetzner.hcloud.server treats a server's 'firewalls' list as complete and
+# removes any other firewall from the server, so an apply_to 'server' entry
+# that the list contradicts would be detached and re-attached on every run.
+- name: Validate firewall server bindings against server firewalls lists
+  ansible.builtin.assert:
+    that:
+      - >-
+        _hcloud_fw_server.firewalls is not defined
+        or ((item.1.state | default('present')) == 'absent')
+        != (item.0.name in _hcloud_fw_server.firewalls)
+    fail_msg: >-
+      Firewall '{{ item.0.name }}' has an apply_to entry for server
+      '{{ item.1.server }}', whose 'firewalls' list hetzner.hcloud.server
+      enforces as complete. For a present binding add '{{ item.0.name }}' to
+      that list (or drop 'firewalls' from the server); for a binding set to
+      absent remove it from the list.
+    success_msg: "Firewall '{{ item.0.name }}' binding to '{{ item.1.server }}' agrees with the server"
+  vars:
+    _hcloud_fw_server: "{{ hcloud_servers | selectattr('name', 'defined') | selectattr('name', 'eq', item.1.server) | first | default({}) }}"
+  loop: "{{ hcloud_firewalls | subelements('apply_to', skip_missing=True) }}"
+  loop_control:
+    label: "{{ item.0.name | default('UNNAMED') }} -> {{ item.1.server | default('') }}"
+  when:
+    - item.1.server is defined
+    - (item.0.state | default(hcloud_state)) == 'present'
+    - (_hcloud_fw_server.state | default(hcloud_state)) == 'present'
+
+- name: Validate required fields - placement groups
   ansible.builtin.assert:
     that:
       - item.name is defined and item.name | length > 0
@@ -124,21 +155,24 @@
     label: "{{ item.name | default('UNNAMED') }}"
   when: hcloud_placement_groups | length > 0
 
-- name: Validate required fields — servers
+- name: Validate required fields - servers
   ansible.builtin.assert:
     that:
       - item.name is defined and item.name | length > 0
       - (item.state | default(hcloud_state)) == 'absent' or item.server_type is defined
+    # Name only: a server entry may carry user_data (join tokens), so the
+    # entry is never echoed and the task output is masked by hcloud_no_log.
     fail_msg: >-
-      Server entry invalid: 'name' is required; 'server_type' is required when
-      state=present. Entry: {{ item | to_json }}
+      Server entry '{{ item.name | default('UNNAMED') }}' invalid: 'name' is
+      required; 'server_type' is required when state=present.
     success_msg: "Server '{{ item.name }}' validated"
   loop: "{{ hcloud_servers }}"
   loop_control:
     label: "{{ item.name | default('UNNAMED') }}"
   when: hcloud_servers | length > 0
+  no_log: "{{ hcloud_no_log }}"
 
-- name: Validate required fields — server network attachments
+- name: Validate required fields - server network attachments
   ansible.builtin.assert:
     that:
       - item.server is defined and item.server | length > 0
@@ -152,7 +186,7 @@
     label: "{{ item.server | default('UNNAMED') }}/{{ item.network | default('?') }}"
   when: hcloud_server_networks | length > 0
 
-- name: Validate required fields — primary IPs
+- name: Validate required fields - primary IPs
   ansible.builtin.assert:
     that:
       - item.name is defined and item.name | length > 0
@@ -166,7 +200,7 @@
     label: "{{ item.name | default('UNNAMED') }}"
   when: hcloud_primary_ips | length > 0
 
-- name: Validate required fields — floating IPs
+- name: Validate required fields - floating IPs
   ansible.builtin.assert:
     that:
       - item.name is defined and item.name | length > 0
@@ -182,7 +216,7 @@
     label: "{{ item.name | default('UNNAMED') }}"
   when: hcloud_floating_ips | length > 0
 
-- name: Validate required fields — volumes
+- name: Validate required fields - volumes
   ansible.builtin.assert:
     that:
       - item.name is defined and item.name | length > 0
@@ -196,7 +230,7 @@
     label: "{{ item.name | default('UNNAMED') }}"
   when: hcloud_volumes | length > 0
 
-- name: Validate required fields — load balancers
+- name: Validate required fields - load balancers
   ansible.builtin.assert:
     that:
       - item.name is defined and item.name | length > 0

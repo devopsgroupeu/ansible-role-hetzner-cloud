@@ -1,0 +1,36 @@
+---
+# =============================================================================
+# converge.yml - provision against the mock API (run twice by idempotence)
+#
+# The floating IP and volume use the shape of the old defaults/main.yml
+# examples verbatim, including the empty 'server: ""' strings.
+# =============================================================================
+
+- name: Converge (real module calls against the mock Hetzner API)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    hcloud_floating_ips:
+      - name: ingress-vip
+        type: ipv4
+        home_location: nbg1
+        server: ""
+        labels:
+          role: vip
+        state: present
+    hcloud_volumes:
+      - name: vault-data
+        size: 20
+        location: fsn1
+        server: ""
+        format: ext4
+        automount: false
+        state: present
+
+  tasks:
+    - name: Include hetzner-cloud role
+      ansible.builtin.include_role:
+        name: ansible-role-hetzner-cloud

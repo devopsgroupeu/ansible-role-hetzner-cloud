@@ -13,8 +13,16 @@ on:
 
 jobs:
   lint:
-    name: lint
+    name: lint / ${{ matrix.ansible }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python: "3.12"
+            ansible: "ansible-core>=2.21,<2.22"
+          - python: "3.13"
+            ansible: "ansible-core>=2.22,<2.23"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -22,14 +30,22 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
           cache: pip
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt "${{ matrix.ansible }}"
 
       - name: yamllint
         run: yamllint .
+
+      - name: No retired shared vCPU server types (Hetzner, 2026-01-01)
+        run: "! git ls-files | xargs grep -n -w -E 'cx(22|32|42|52)'"
+
+      - name: No stale statements in docs, specs and examples
+        run: >-
+          ! git grep -n -E 'scheduled 2026-07-01|assignee_type|Python 3\.10\+'
+          -- README.md docs defaults meta tasks examples
 
       - name: ansible-lint
         run: ansible-lint --profile production .
@@ -37,11 +53,32 @@ jobs:
       - name: Install collection for syntax-check
         run: ansible-galaxy collection install -r requirements.yml
 
+      - name: Assert the installed hetzner.hcloud major is below 8
+        run: >-
+          ansible-galaxy collection list hetzner.hcloud --format json |
+          python3 -c 'import json, sys;
+          v = [c["hetzner.hcloud"]["version"] for c in json.load(sys.stdin).values() if "hetzner.hcloud" in c][0];
+          print("hetzner.hcloud", v); assert int(v.split(".")[0]) < 8, v'
+
+      # Every molecule playbook, mock-api case and example. The examples use
+      # the Galaxy role name, the cases the repo directory name.
       - name: syntax-check
-        run: ansible-playbook --syntax-check molecule/default/converge.yml
+        shell: bash
+        run: |
+          roles="$(mktemp -d)"
+          ln -s "$PWD" "$roles/devopsgroupeu.hetzner-cloud"
+          ln -s "$PWD" "$roles/ansible-role-hetzner-cloud"
+          rc=0
+          for f in molecule/*/*.yml molecule/mock-api/cases/*.yml examples/*.yml; do
+            [[ "$f" == */molecule.yml ]] && continue
+            echo "::group::$f"
+            ANSIBLE_ROLES_PATH="$roles" ansible-playbook -i localhost, --syntax-check "$f" || rc=1
+            echo "::endgroup::"
+          done
+          exit "$rc"
 
   molecule:
-    name: molecule / ${{ matrix.scenario }} / ${{ matrix.distro }}
+    name: molecule / ${{ matrix.scenario }} / ${{ matrix.distro }} / ${{ matrix.ansible }}
     runs-on: ubuntu-latest
     needs: lint
     strategy:
@@ -54,6 +91,27 @@ jobs:
           - debian13
           - ubuntu2404
           - rockylinux9
+        ansible:
+          - "ansible-core>=2.21,<2.22"
+        include:
+          # Adds python to every combination above.
+          - ansible: "ansible-core>=2.21,<2.22"
+            python: "3.12"
+          # A different ansible value, so this is an extra job.
+          - scenario: default
+            distro: debian12
+            ansible: "ansible-core>=2.22,<2.23"
+            python: "3.13"
+          # Offline teardown gate (docker) and real module calls against the
+          # local mock API (delegated, runs on the runner): debian12 only.
+          - scenario: teardown-gate
+            distro: debian12
+            ansible: "ansible-core>=2.21,<2.22"
+            python: "3.12"
+          - scenario: mock-api
+            distro: debian12
+            ansible: "ansible-core>=2.21,<2.22"
+            python: "3.12"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -61,18 +119,25 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
           cache: pip
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt "${{ matrix.ansible }}"
+
+      - name: Install collections
+        run: ansible-galaxy collection install -r requirements.yml
 
       - name: Run Molecule scenario
-        run: molecule test -s ${{ matrix.scenario }}
+        shell: bash
+        run: molecule test -s ${{ matrix.scenario }} 2>&1 | tee molecule.log
         env:
           PY_COLORS: "1"
           ANSIBLE_FORCE_COLOR: "1"
           MOLECULE_IMAGE: "geerlingguy/docker-${{ matrix.distro }}-ansible:latest"
+
+      - name: Assert user_data never appears in the output
+        run: "! grep -q SENTINEL-USERDATA molecule.log"
 
   ci-success:
     name: ci-success
@@ -83,7 +148,7 @@ jobs:
       - name: Fail if any required job did not succeed
         if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
         run: |
-          echo "A required CI job (lint or molecule) did not succeed."
+          echo "A required CI job (lint or a molecule scenario) did not succeed."
           exit 1
       - name: Confirm required jobs passed
-        run: echo "lint + molecule succeeded"
+        run: echo "lint + molecule (default, teardown-gate, mock-api) succeeded"

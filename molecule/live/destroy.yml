@@ -1,9 +1,12 @@
 ---
 # =============================================================================
-# molecule/live/destroy.yml — always-destroy teardown for live scenario
+# molecule/live/destroy.yml - always-destroy teardown for live scenario
 #
-# Removes all resources created by converge.yml.
-# This runs automatically at the end of `molecule test -s live` (even on failure).
+# Removes all resources created by converge.yml in a single pass: the role
+# deletes absent items in reverse dependency order (attachment, server,
+# subnet, network, SSH key) and tolerates already-deleted parents, so this
+# is safe to re-run. It runs at the end of `molecule test -s live` (even on
+# failure).
 # =============================================================================
 
 - name: Destroy live resources
@@ -24,7 +27,6 @@
 
     hcloud_servers:
       - name: molecule-live-server
-        server_type: cx22
         state: absent
 
     hcloud_subnetworks:
@@ -41,7 +43,6 @@
 
     hcloud_ssh_keys:
       - name: molecule-live-test-key
-        public_key: ""
         state: absent
 
   tasks:

@@ -1,0 +1,49 @@
+---
+# Manual live test: creates and destroys real (billable) Hetzner Cloud
+# resources with molecule/live. Run it by hand from the Actions tab, with
+# the HCLOUD_TOKEN repository secret set to a throwaway project's token.
+name: Live
+
+concurrency:
+  group: live
+  cancel-in-progress: false
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    name: molecule / live
+    runs-on: ubuntu-latest
+    env:
+      HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+    steps:
+      - name: Require the HCLOUD_TOKEN secret
+        if: env.HCLOUD_TOKEN == ''
+        run: |
+          echo "::error::The HCLOUD_TOKEN secret is not set; refusing to run the live scenario."
+          exit 1
+
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt "ansible-core>=2.21,<2.22"
+
+      - name: Install collections
+        run: ansible-galaxy collection install -r requirements.yml
+
+      - name: Run Molecule live scenario
+        run: molecule test -s live
+        env:
+          PY_COLORS: "1"
+          ANSIBLE_FORCE_COLOR: "1"

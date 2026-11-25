@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# networks.yml — create/manage private RFC1918 networks
+# networks.yml - create/manage private RFC1918 networks
 #
 # Module: hetzner.hcloud.network
 # Loop:   hcloud_networks
@@ -20,3 +20,4 @@
   loop_control:
     label: "{{ item.name }} ({{ item.state | default(hcloud_state) }})"
   register: hcloud_network_results
+  when: (item.state | default(hcloud_state)) == _hcloud_phase

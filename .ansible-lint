@@ -15,3 +15,8 @@ skip_list:
 enable_list:
   - no-log-password
   - loop-var-prefix
+# The examples reference the role by its Galaxy name and the molecule cases by
+# its directory name; neither resolves when linting the repo itself.
+mock_roles:
+  - devopsgroupeu.hetzner-cloud
+  - ansible-role-hetzner-cloud

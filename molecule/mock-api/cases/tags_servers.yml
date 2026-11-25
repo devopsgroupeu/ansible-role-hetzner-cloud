@@ -1,0 +1,22 @@
+---
+# Run with --tags servers: only the server tasks may reach the API.
+- name: Case - scope a run with --tags servers
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    hcloud_networks:
+      - name: prod-net
+        ip_range: "10.0.0.0/16"
+    hcloud_servers:
+      - name: cp-01
+        server_type: cx23
+        location: fsn1
+        labels:
+          role: control-plane
+
+  # Static roles: (as consumers use it) so --tags reaches the role's tasks.
+  roles:
+    - ansible-role-hetzner-cloud

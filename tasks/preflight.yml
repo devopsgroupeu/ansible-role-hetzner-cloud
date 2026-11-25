@@ -1,32 +1,50 @@
 ---
 # =============================================================================
-# preflight.yml — environment prerequisites check (no API calls)
+# preflight.yml - environment prerequisites check (no API calls)
 #
-# Verifies that the hetzner.hcloud collection is resolvable and confirms the
-# offline gate is active when hcloud_provision is false.
+# Verifies that a supported hetzner.hcloud collection version is installed
+# and confirms the offline gate is active when hcloud_provision is false.
+#
+# The collection list runs with check_mode: false (it only reads), so the
+# check also passes under --check. ansible-galaxy prints the search paths
+# in precedence order; the first match is the version Ansible loads.
+# A missing collection usually fails earlier, at parse time, with
+# "could not resolve the module_defaults group hetzner.hcloud.all".
 # =============================================================================
 
 - name: Confirm offline gate is active (provision disabled)
   ansible.builtin.debug:
     msg: >-
-      hcloud_provision=false — all hetzner.hcloud.* API tasks will be skipped.
+      hcloud_provision=false - all hetzner.hcloud.* API tasks will be skipped.
       This is the expected behaviour for offline/validation-only runs.
   when: not hcloud_provision | bool
 
-- name: Verify hetzner.hcloud collection is available
+- name: List the installed hetzner.hcloud collection
   ansible.builtin.command:
-    cmd: ansible-galaxy collection list hetzner.hcloud
+    cmd: ansible-galaxy collection list hetzner.hcloud --format json
   register: _hcloud_collection_check
   changed_when: false
-  failed_when: _hcloud_collection_check.rc != 0
+  failed_when: false
+  check_mode: false
   when: hcloud_provision | bool
 
-- name: Assert hetzner.hcloud collection was found
+- name: Assert a supported hetzner.hcloud collection version is installed
   ansible.builtin.assert:
     that:
-      - "'hetzner.hcloud' in _hcloud_collection_check.stdout"
+      - _hcloud_collection_version is version(_hcloud_collection_min, '>=')
+      - _hcloud_collection_version is version(_hcloud_collection_max, '<')
     fail_msg: >-
-      The hetzner.hcloud collection is not installed. Run:
+      hetzner.hcloud {{ _hcloud_collection_version }} found; this role needs
+      >={{ _hcloud_collection_min }},<{{ _hcloud_collection_max }}
+      (0.0.0 means not found). Run:
         ansible-galaxy collection install -r requirements.yml
-    success_msg: "hetzner.hcloud collection is available"
+    success_msg: "hetzner.hcloud {{ _hcloud_collection_version }} is supported"
+  vars:
+    _hcloud_collection_min: "6.9.0"
+    _hcloud_collection_max: "8.0.0"
+    _hcloud_collection_version: >-
+      {{ ((_hcloud_collection_check.stdout | default('{}', true) | from_json).values()
+          | map('dict2items') | flatten
+          | selectattr('key', 'eq', 'hetzner.hcloud')
+          | map(attribute='value.version') | list | first | default('0.0.0')) }}
   when: hcloud_provision | bool

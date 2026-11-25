@@ -1,0 +1,25 @@
+---
+# A firewall bound with apply_to 'server' to a server that also sets its own
+# 'firewalls' list. The server module enforces that list as complete, so the
+# bound firewall must be in it, or every run would detach and re-attach it.
+- name: Case - apply_to server next to the server's firewalls list
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    hcloud_firewalls:
+      - name: base-fw
+      - name: web-fw
+        apply_to:
+          - server: web-01
+    hcloud_servers:
+      - name: web-01
+        server_type: cx23
+        firewalls:
+          - base-fw
+          - web-fw
+
+  roles:
+    - ansible-role-hetzner-cloud

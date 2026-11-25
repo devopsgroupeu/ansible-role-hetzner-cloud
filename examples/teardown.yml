@@ -1,12 +1,12 @@
 ---
 # =============================================================================
-# examples/teardown.yml — safe teardown walkthrough
+# examples/teardown.yml - safe teardown walkthrough
 #
 # Always scope with --tags to avoid accidentally destroying everything at once.
 # hcloud_allow_teardown: true is REQUIRED for any state: absent run.
 #
 # Usage:
-#   # Dry-run (syntax check only — does NOT call API, no --check):
+#   # Dry-run (syntax check only - does NOT call API, no --check):
 #   ansible-playbook examples/teardown.yml --syntax-check
 #
 #   # Destroy servers only:
@@ -14,7 +14,8 @@
 #     -e hcloud_allow_teardown=true \
 #     --tags servers,server_networks
 #
-#   # Full teardown (reverse dependency order):
+#   # Full teardown in one pass (the role deletes in reverse dependency
+#   # order and the run is safe to repeat):
 #   ansible-playbook examples/teardown.yml \
 #     -e hcloud_allow_teardown=true
 # =============================================================================
@@ -29,13 +30,13 @@
     hcloud_provision: true
     hcloud_state: absent
 
-    # REQUIRED for any state: absent run — pass on CLI, never hardcode true here
+    # REQUIRED for any state: absent run - pass on CLI, never hardcode true here
     hcloud_allow_teardown: false
 
     # Mirror your provisioning play for the resources you want to remove.
-    # Teardown order in tasks/main.yml is the same as creation; for a clean
-    # teardown run resources in reverse (servers before networks etc.) or use
-    # per-item state: absent with targeted --tags.
+    # Absent resources are deleted in reverse dependency order (attachments
+    # before servers, servers before firewalls, subnets before networks), so
+    # list order here does not matter.
 
     hcloud_server_networks:
       - server: cp-01
@@ -50,19 +51,19 @@
 
     hcloud_servers:
       - name: cp-01
-        server_type: cx32
+        server_type: cx33
         state: absent
       - name: cp-02
-        server_type: cx32
+        server_type: cx33
         state: absent
       - name: cp-03
-        server_type: cx32
+        server_type: cx33
         state: absent
       - name: wk-01
-        server_type: cx42
+        server_type: cx43
         state: absent
       - name: wk-02
-        server_type: cx42
+        server_type: cx43
         state: absent
 
     hcloud_floating_ips:

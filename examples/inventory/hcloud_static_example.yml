@@ -1,7 +1,7 @@
-# Static inventory example — matches the groups emitted by templates/hcloud_inventory.yml.j2
+# Static inventory example - matches the groups emitted by templates/hcloud_inventory.yml.j2
 # and the hcloud.yml dynamic inventory plugin (groups: map).
 #
-# Group names are illustrative — choose whatever your downstream plays consume:
+# Group names are illustrative - choose whatever your downstream plays consume:
 #   server_nodes  → your control-plane play
 #   agent_nodes   → your worker play
 #   proxy_hosts   → your load-balancer play

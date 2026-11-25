@@ -1,12 +1,12 @@
 ---
 # =============================================================================
-# converge.yml — teardown-gate negative test (offline, NO Hetzner API)
+# converge.yml - teardown-gate negative test (offline, NO Hetzner API)
 #
 # Drives the role with hcloud_state: absent and hcloud_allow_teardown: false.
 # validate.yml MUST abort at the "Refuse teardown unless explicitly allowed"
 # assert. We wrap the role include in block/rescue: the rescue records that the
 # gate fired; if the role instead completes, we record failure. A final assert
-# fails the play unless the gate fired — proving the safety guard works.
+# fails the play unless the gate fired - proving the safety guard works.
 #
 # hcloud_provision: false keeps this fully offline (no HCLOUD_TOKEN, no API).
 # =============================================================================
@@ -16,7 +16,7 @@
   gather_facts: false
 
   vars:
-    # OFFLINE GATE — no API calls in this scenario
+    # OFFLINE GATE - no API calls in this scenario
     hcloud_provision: false
     # Destructive intent without the explicit opt-in flag → must be refused
     hcloud_state: absent
@@ -29,7 +29,7 @@
           ansible.builtin.include_role:
             name: ansible-role-hetzner-cloud
 
-        - name: Role completed without aborting (UNEXPECTED — gate did not fire)
+        - name: Role completed without aborting (UNEXPECTED - gate did not fire)
           ansible.builtin.set_fact:
             teardown_gate_fired: false
       rescue:
@@ -45,5 +45,96 @@
           SAFETY REGRESSION: the role did NOT abort despite hcloud_state=absent
           and hcloud_allow_teardown=false. The teardown safety gate is broken.
         success_msg: >-
-          Teardown gate fired as expected — destructive run was correctly
+          Teardown gate fired as expected - destructive run was correctly
           refused without the explicit hcloud_allow_teardown=true opt-in.
+
+# =============================================================================
+# Second play: a present load balancer whose service or target, or a present
+# firewall whose apply_to entry is set to state=absent is destructive too, so
+# the gate must fire for each of them.
+# =============================================================================
+- name: Teardown-gate negative test for LB services, LB targets and firewall bindings
+  hosts: all
+  gather_facts: false
+
+  vars:
+    hcloud_provision: false
+    hcloud_allow_teardown: false
+
+  tasks:
+    - name: Run the role with only a load balancer service set to absent
+      block:
+        - name: Include hetzner-cloud role (expected to ABORT at the gate)
+          ansible.builtin.include_role:
+            name: ansible-role-hetzner-cloud
+          vars:
+            hcloud_load_balancers:
+              - name: api-lb
+                load_balancer_type: lb11
+                location: fsn1
+                services:
+                  - protocol: tcp
+                    listen_port: 6443
+                    state: absent
+
+        - name: Role completed without aborting (UNEXPECTED - gate did not fire)
+          ansible.builtin.set_fact:
+            lb_service_gate_fired: false
+      rescue:
+        - name: Record that the gate aborted the LB service teardown
+          ansible.builtin.set_fact:
+            lb_service_gate_fired: true
+
+    - name: Run the role with only a load balancer target set to absent
+      block:
+        - name: Include hetzner-cloud role (expected to ABORT at the gate)
+          ansible.builtin.include_role:
+            name: ansible-role-hetzner-cloud
+          vars:
+            hcloud_load_balancers:
+              - name: api-lb
+                load_balancer_type: lb11
+                location: fsn1
+                targets:
+                  - type: label_selector
+                    label_selector: "role=control-plane"
+                    state: absent
+
+        - name: Role completed without aborting (UNEXPECTED - gate did not fire)
+          ansible.builtin.set_fact:
+            lb_target_gate_fired: false
+      rescue:
+        - name: Record that the gate aborted the LB target teardown
+          ansible.builtin.set_fact:
+            lb_target_gate_fired: true
+
+    - name: Run the role with only a firewall binding set to absent
+      block:
+        - name: Include hetzner-cloud role (expected to ABORT at the gate)
+          ansible.builtin.include_role:
+            name: ansible-role-hetzner-cloud
+          vars:
+            hcloud_firewalls:
+              - name: k8s-cp-fw
+                apply_to:
+                  - label_selector: "role=control-plane"
+                    state: absent
+
+        - name: Role completed without aborting (UNEXPECTED - gate did not fire)
+          ansible.builtin.set_fact:
+            fw_binding_gate_fired: false
+      rescue:
+        - name: Record that the gate aborted the firewall unbinding
+          ansible.builtin.set_fact:
+            fw_binding_gate_fired: true
+
+    - name: Assert the gate fired for LB service, LB target and firewall binding teardown
+      ansible.builtin.assert:
+        that:
+          - lb_service_gate_fired | bool
+          - lb_target_gate_fired | bool
+          - fw_binding_gate_fired | bool
+        fail_msg: >-
+          SAFETY REGRESSION: an LB service/target or a firewall apply_to entry
+          with state=absent ran without hcloud_allow_teardown=true.
+        success_msg: "Teardown gate fired for LB service, LB target and firewall binding teardown"

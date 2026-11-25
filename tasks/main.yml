@@ -1,11 +1,13 @@
 ---
 # =============================================================================
-# main.yml — role orchestrator
+# main.yml - role orchestrator
 #
 # Execution order:
-#   1. validate.yml  (tags: always — always runs, pure asserts, no API)
+#   1. validate.yml  (tags: always - always runs, pure asserts, no API)
 #   2. preflight.yml (checks collection availability, no API)
-#   3. Per-resource includes (only when hcloud_provision and list non-empty)
+#   3. Per-resource includes (only when hcloud_provision), in two phases:
+#      present items in creation order, then absent items in reverse
+#      dependency order (each include passes _hcloud_phase to its tasks).
 #      Wrapped in module_defaults to pass api_token once for all hcloud modules.
 #   4. outputs.yml   (emit facts / optionally write inventory file)
 #
@@ -37,83 +39,443 @@
     group/hetzner.hcloud.all:
       api_token: "{{ hcloud_api_token }}"
   block:
+    # Present phase: create/update in dependency order.
     - name: Manage SSH keys
-      ansible.builtin.include_tasks: ssh_keys.yml
-      when: hcloud_ssh_keys | length > 0
+      ansible.builtin.include_tasks:
+        file: ssh_keys.yml
+        apply:
+          tags:
+            - hcloud
+            - ssh_keys
+      vars:
+        _hcloud_phase: present
+      when: >-
+        hcloud_ssh_keys | map(attribute='state', default=hcloud_state)
+        | select('eq', 'present') | list | length > 0
       tags:
         - hcloud
         - ssh_keys
 
     - name: Manage networks
-      ansible.builtin.include_tasks: networks.yml
-      when: hcloud_networks | length > 0
+      ansible.builtin.include_tasks:
+        file: networks.yml
+        apply:
+          tags:
+            - hcloud
+            - networks
+      vars:
+        _hcloud_phase: present
+      when: >-
+        hcloud_networks | map(attribute='state', default=hcloud_state)
+        | select('eq', 'present') | list | length > 0
       tags:
         - hcloud
         - networks
 
     - name: Manage subnetworks
-      ansible.builtin.include_tasks: subnetworks.yml
-      when: hcloud_subnetworks | length > 0
+      ansible.builtin.include_tasks:
+        file: subnetworks.yml
+        apply:
+          tags:
+            - hcloud
+            - subnetworks
+      vars:
+        _hcloud_phase: present
+      when: >-
+        hcloud_subnetworks | map(attribute='state', default=hcloud_state)
+        | select('eq', 'present') | list | length > 0
       tags:
         - hcloud
         - subnetworks
 
     - name: Manage firewalls
-      ansible.builtin.include_tasks: firewalls.yml
-      when: hcloud_firewalls | length > 0
+      ansible.builtin.include_tasks:
+        file: firewalls.yml
+        apply:
+          tags:
+            - hcloud
+            - firewalls
+      vars:
+        _hcloud_phase: present
+      when: >-
+        hcloud_firewalls | map(attribute='state', default=hcloud_state)
+        | select('eq', 'present') | list | length > 0
+      tags:
+        - hcloud
+        - firewalls
+
+    # Before the servers, so Hetzner applies a label-selector firewall to a
+    # matching server when it is created (no window without the firewall).
+    - name: Bind firewalls to label selectors
+      ansible.builtin.include_tasks:
+        file: firewall_bindings.yml
+        apply:
+          tags:
+            - hcloud
+            - firewalls
+      vars:
+        _hcloud_phase: present
+        _hcloud_fw_key: label_selector
+      when: >-
+        hcloud_firewalls | map(attribute='apply_to', default=[])
+        | flatten | selectattr('label_selector', 'defined') | list | length > 0
       tags:
         - hcloud
         - firewalls
 
     - name: Manage placement groups
-      ansible.builtin.include_tasks: placement_groups.yml
-      when: hcloud_placement_groups | length > 0
+      ansible.builtin.include_tasks:
+        file: placement_groups.yml
+        apply:
+          tags:
+            - hcloud
+            - placement_groups
+      vars:
+        _hcloud_phase: present
+      when: >-
+        hcloud_placement_groups | map(attribute='state', default=hcloud_state)
+        | select('eq', 'present') | list | length > 0
       tags:
         - hcloud
         - placement_groups
 
+    - name: Manage primary IPs
+      ansible.builtin.include_tasks:
+        file: primary_ips.yml
+        apply:
+          tags:
+            - hcloud
+            - primary_ips
+      vars:
+        _hcloud_phase: present
+      when: >-
+        hcloud_primary_ips | map(attribute='state', default=hcloud_state)
+        | select('eq', 'present') | list | length > 0
+      tags:
+        - hcloud
+        - primary_ips
+
+    # Volumes without a server first, so servers can list them in 'volumes'.
+    - name: Manage unattached volumes
+      ansible.builtin.include_tasks:
+        file: volumes.yml
+        apply:
+          tags:
+            - hcloud
+            - volumes
+      vars:
+        _hcloud_phase: present
+        _hcloud_volume_pass: pre
+      when: >-
+        hcloud_volumes | map(attribute='state', default=hcloud_state)
+        | select('eq', 'present') | list | length > 0
+      tags:
+        - hcloud
+        - volumes
+
     - name: Manage servers
-      ansible.builtin.include_tasks: servers.yml
-      when: hcloud_servers | length > 0
+      ansible.builtin.include_tasks:
+        file: servers.yml
+        apply:
+          tags:
+            - hcloud
+            - servers
+      vars:
+        _hcloud_phase: present
+      when: >-
+        hcloud_servers | map(attribute='state', default=hcloud_state)
+        | select('eq', 'present') | list | length > 0
       tags:
         - hcloud
         - servers
 
+    # After the servers, so apply_to 'server' entries can bind to servers
+    # created in this run.
+    - name: Bind firewalls to servers
+      ansible.builtin.include_tasks:
+        file: firewall_bindings.yml
+        apply:
+          tags:
+            - hcloud
+            - firewalls
+      vars:
+        _hcloud_phase: present
+        _hcloud_fw_key: server
+      when: >-
+        hcloud_firewalls | map(attribute='apply_to', default=[])
+        | flatten | selectattr('server', 'defined') | list | length > 0
+      tags:
+        - hcloud
+        - firewalls
+
     - name: Attach servers to networks
-      ansible.builtin.include_tasks: server_networks.yml
-      when: hcloud_server_networks | length > 0
+      ansible.builtin.include_tasks:
+        file: server_networks.yml
+        apply:
+          tags:
+            - hcloud
+            - server_networks
+            - servers
+      vars:
+        _hcloud_phase: present
+      when: >-
+        hcloud_server_networks | map(attribute='state', default=hcloud_state)
+        | select('eq', 'present') | list | length > 0
       tags:
         - hcloud
         - server_networks
         - servers
 
-    - name: Manage primary IPs
-      ansible.builtin.include_tasks: primary_ips.yml
-      when: hcloud_primary_ips | length > 0
+    # Read servers back after the network attachments: the server module
+    # returns create-time data (no private IPs yet on the first run, null for
+    # absent servers), so outputs.yml is built from this refreshed state.
+    - name: Refresh provisioned server state
+      hetzner.hcloud.server_info:
+        name: "{{ item.name }}"
+      loop: "{{ hcloud_servers }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: _hcloud_server_refresh
+      when: (item.state | default(hcloud_state)) == 'present'
       tags:
         - hcloud
-        - primary_ips
+        - servers
+        - server_networks
+        - outputs
 
     - name: Manage floating IPs
-      ansible.builtin.include_tasks: floating_ips.yml
-      when: hcloud_floating_ips | length > 0
+      ansible.builtin.include_tasks:
+        file: floating_ips.yml
+        apply:
+          tags:
+            - hcloud
+            - floating_ips
+      vars:
+        _hcloud_phase: present
+      when: >-
+        hcloud_floating_ips | map(attribute='state', default=hcloud_state)
+        | select('eq', 'present') | list | length > 0
       tags:
         - hcloud
         - floating_ips
 
-    - name: Manage volumes
-      ansible.builtin.include_tasks: volumes.yml
-      when: hcloud_volumes | length > 0
+    - name: Manage server-attached volumes
+      ansible.builtin.include_tasks:
+        file: volumes.yml
+        apply:
+          tags:
+            - hcloud
+            - volumes
+      vars:
+        _hcloud_phase: present
+        _hcloud_volume_pass: post
+      when: >-
+        hcloud_volumes | map(attribute='state', default=hcloud_state)
+        | select('eq', 'present') | list | length > 0
       tags:
         - hcloud
         - volumes
 
     - name: Manage load balancers
-      ansible.builtin.include_tasks: load_balancers.yml
-      when: hcloud_load_balancers | length > 0
+      ansible.builtin.include_tasks:
+        file: load_balancers.yml
+        apply:
+          tags:
+            - hcloud
+            - load_balancers
+      vars:
+        _hcloud_phase: present
+      when: >-
+        hcloud_load_balancers | map(attribute='state', default=hcloud_state)
+        | select('eq', 'present') | list | length > 0
       tags:
         - hcloud
         - load_balancers
+
+    # Absent phase: delete in reverse dependency order, so children go before
+    # their parents (LB before its network, attachments before servers,
+    # servers before the primary IPs/firewalls/placement groups they use,
+    # subnets before networks). Each task only acts on items whose state matches the phase.
+    - name: Delete absent load balancers
+      ansible.builtin.include_tasks:
+        file: load_balancers.yml
+        apply:
+          tags:
+            - hcloud
+            - load_balancers
+      vars:
+        _hcloud_phase: absent
+      when: >-
+        hcloud_load_balancers | map(attribute='state', default=hcloud_state)
+        | select('eq', 'absent') | list | length > 0
+      tags:
+        - hcloud
+        - load_balancers
+
+    - name: Delete absent volumes
+      ansible.builtin.include_tasks:
+        file: volumes.yml
+        apply:
+          tags:
+            - hcloud
+            - volumes
+      vars:
+        _hcloud_phase: absent
+      when: >-
+        hcloud_volumes | map(attribute='state', default=hcloud_state)
+        | select('eq', 'absent') | list | length > 0
+      tags:
+        - hcloud
+        - volumes
+
+    - name: Delete absent floating IPs
+      ansible.builtin.include_tasks:
+        file: floating_ips.yml
+        apply:
+          tags:
+            - hcloud
+            - floating_ips
+      vars:
+        _hcloud_phase: absent
+      when: >-
+        hcloud_floating_ips | map(attribute='state', default=hcloud_state)
+        | select('eq', 'absent') | list | length > 0
+      tags:
+        - hcloud
+        - floating_ips
+
+    - name: Detach servers from networks
+      ansible.builtin.include_tasks:
+        file: server_networks.yml
+        apply:
+          tags:
+            - hcloud
+            - server_networks
+            - servers
+      vars:
+        _hcloud_phase: absent
+      when: >-
+        hcloud_server_networks | map(attribute='state', default=hcloud_state)
+        | select('eq', 'absent') | list | length > 0
+      tags:
+        - hcloud
+        - server_networks
+        - servers
+
+    - name: Delete absent servers
+      ansible.builtin.include_tasks:
+        file: servers.yml
+        apply:
+          tags:
+            - hcloud
+            - servers
+      vars:
+        _hcloud_phase: absent
+      when: >-
+        hcloud_servers | map(attribute='state', default=hcloud_state)
+        | select('eq', 'absent') | list | length > 0
+      tags:
+        - hcloud
+        - servers
+
+    # After the servers: Hetzner only unassigns a Primary IP from a powered-off
+    # server, while deleting the server releases it (or deletes it when
+    # auto_delete is set).
+    - name: Delete absent primary IPs
+      ansible.builtin.include_tasks:
+        file: primary_ips.yml
+        apply:
+          tags:
+            - hcloud
+            - primary_ips
+      vars:
+        _hcloud_phase: absent
+      when: >-
+        hcloud_primary_ips | map(attribute='state', default=hcloud_state)
+        | select('eq', 'absent') | list | length > 0
+      tags:
+        - hcloud
+        - primary_ips
+
+    - name: Delete absent placement groups
+      ansible.builtin.include_tasks:
+        file: placement_groups.yml
+        apply:
+          tags:
+            - hcloud
+            - placement_groups
+      vars:
+        _hcloud_phase: absent
+      when: >-
+        hcloud_placement_groups | map(attribute='state', default=hcloud_state)
+        | select('eq', 'absent') | list | length > 0
+      tags:
+        - hcloud
+        - placement_groups
+
+    - name: Delete absent firewalls
+      ansible.builtin.include_tasks:
+        file: firewalls.yml
+        apply:
+          tags:
+            - hcloud
+            - firewalls
+      vars:
+        _hcloud_phase: absent
+      when: >-
+        hcloud_firewalls | map(attribute='state', default=hcloud_state)
+        | select('eq', 'absent') | list | length > 0
+      tags:
+        - hcloud
+        - firewalls
+
+    - name: Delete absent subnetworks
+      ansible.builtin.include_tasks:
+        file: subnetworks.yml
+        apply:
+          tags:
+            - hcloud
+            - subnetworks
+      vars:
+        _hcloud_phase: absent
+      when: >-
+        hcloud_subnetworks | map(attribute='state', default=hcloud_state)
+        | select('eq', 'absent') | list | length > 0
+      tags:
+        - hcloud
+        - subnetworks
+
+    - name: Delete absent networks
+      ansible.builtin.include_tasks:
+        file: networks.yml
+        apply:
+          tags:
+            - hcloud
+            - networks
+      vars:
+        _hcloud_phase: absent
+      when: >-
+        hcloud_networks | map(attribute='state', default=hcloud_state)
+        | select('eq', 'absent') | list | length > 0
+      tags:
+        - hcloud
+        - networks
+
+    - name: Delete absent SSH keys
+      ansible.builtin.include_tasks:
+        file: ssh_keys.yml
+        apply:
+          tags:
+            - hcloud
+            - ssh_keys
+      vars:
+        _hcloud_phase: absent
+      when: >-
+        hcloud_ssh_keys | map(attribute='state', default=hcloud_state)
+        | select('eq', 'absent') | list | length > 0
+      tags:
+        - hcloud
+        - ssh_keys
 
 - name: Emit outputs
   ansible.builtin.import_tasks: outputs.yml

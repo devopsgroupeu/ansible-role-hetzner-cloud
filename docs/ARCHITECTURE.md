@@ -62,7 +62,7 @@ flowchart TD
 
 The role assigns servers to inventory groups based on the `role` label applied
 at server creation time. Label *values* and group *names* are illustrative
-examples — choose whatever names your downstream plays consume:
+examples - choose whatever names your downstream plays consume:
 
 | Hetzner label | Inventory group (example) |
 |---|---|
@@ -84,11 +84,23 @@ Resources are created in dependency order within a single play:
 
 1. SSH keys
 2. Networks → subnetworks
-3. Firewalls
+3. Firewalls, then their label-selector bindings (`apply_to`), so a new
+   server matching the selector has the firewall from creation
 4. Placement groups
-5. Servers (reference SSH keys, firewalls, placement groups)
-6. Server-network attachments (reference servers and networks)
-7. Primary IPs / floating IPs
-8. Volumes
-9. Load balancers (optional, alternative to a self-hosted load balancer)
-10. Outputs: set `hcloud_provisioned_servers` fact; render static inventory
+5. Primary IPs (so servers can reference them), volumes without `server`
+   (so servers can attach them at creation)
+6. Servers (reference SSH keys, firewalls, placement groups)
+   - Firewall `server` bindings (`apply_to`), so servers created in the run
+     can be bound
+7. Server-network attachments (reference servers and networks)
+8. Floating IPs
+9. Volumes with `server`
+10. Load balancers (optional, alternative to a self-hosted load balancer)
+11. Outputs: set `hcloud_provisioned_servers` fact; render static inventory
+
+Items with `state: absent` are skipped in that pass and deleted afterwards in
+reverse dependency order: load balancers, volumes, floating IPs,
+server-network attachments, servers, primary IPs, placement groups, firewalls,
+subnetworks, networks, SSH keys. Primary IPs go after the servers because
+Hetzner only unassigns a Primary IP from a powered-off server, while deleting
+the server releases it.

@@ -22,9 +22,9 @@ creation time, so your subsequent plays can target them by group.
 ### Inventory group contract
 
 This role can emit hosts into arbitrary groups (via the dynamic plugin `groups:`
-map or the static template) keyed off the labels you stamp on each server. The
-group names below are illustrative examples — pick whatever names your downstream
-plays consume:
+map or the static template's `hcloud_inventory_groups`) keyed off the labels you
+stamp on each server. The group names below are the static template's defaults;
+pick whatever names your downstream plays consume:
 
 | Group (example) | Label value |
 |---|---|
@@ -41,29 +41,32 @@ After provisioning, use the `hetzner.hcloud.hcloud` inventory plugin to
 automatically discover hosts by label. No static file to maintain; newly created
 servers matching a label selector appear automatically.
 
-Create a file named `hcloud.yml` (must end in `.hcloud.yml`) alongside your
-playbooks:
+Create a file whose name ends in `hcloud.yml` alongside your playbooks (a copy
+of [`examples/inventory/hcloud.yml`](../examples/inventory/hcloud.yml)):
 
 ```yaml
 # hcloud.yml
-plugin: hetzner.hcloud.hcloud
-api_token: "{{ lookup('env', 'HCLOUD_TOKEN') }}"
+plugin: hetzner.hcloud.hcloud   # the API token is read from HCLOUD_TOKEN
 
-# Filter to only servers on your private network (recommended for multi-tenant projects)
+# Only servers managed by this role and attached to the private network
+label_selector: managed-by=ansible-hetzner-cloud
 network: prod-net
+
+# SSH over the private IP on 'network' (sets ansible_host)
+connect_with: private_ipv4
 
 # Group hosts by label so downstream plays can target them
 groups:
-  server_nodes: "labels.role == 'control-plane'"
-  agent_nodes: "labels.role == 'worker'"
-  proxy_hosts: "labels.role == 'proxy'"
-  vault: "labels.role == 'vault'"
-
-# Use private network IPs for SSH (requires network: above)
-# hostvars_prefix defaults to 'hcloud_' since collection v5
-compose:
-  ansible_host: private_ipv4_address
+  server_nodes: "hcloud_labels.role | default('') == 'control-plane'"
+  agent_nodes: "hcloud_labels.role | default('') == 'worker'"
+  proxy_hosts: "hcloud_labels.role | default('') == 'proxy'"
+  vault: "hcloud_labels.role | default('') == 'vault'"
 ```
+
+The plugin prefixes every Hetzner field with `hcloud_` (`hostvars_prefix`), so
+labels are `hcloud_labels` and the private IP is `hcloud_private_ipv4`.
+Expressions on the unprefixed names (`labels.role`) match nothing, and the
+constructed groups do not report the error.
 
 Run with:
 ```bash
@@ -85,8 +88,19 @@ vars:
   hcloud_inventory_path: /tmp/hcloud_inventory.yml
 ```
 
-The generated file groups servers by their `role` label, grouping hosts by label
-as your downstream plays require:
+The generated file groups servers by their `role` label using
+`hcloud_inventory_groups` (group name -> `role` label value; the default is the
+table above). `ansible_host` is the public IPv4 (the first private IP for servers
+without one) and `hcloud_private_ip` the first private IP. Servers whose role
+label matches no group are written under `ungrouped`:
+
+```yaml
+hcloud_inventory_groups:
+  server_nodes: control-plane
+  agent_nodes: worker
+  proxy_hosts: proxy
+  vault: vault
+```
 
 ```yaml
 all:
@@ -94,24 +108,34 @@ all:
     server_nodes:
       hosts:
         cp-01:
-          ansible_host: 10.0.1.11
+          ansible_host: 203.0.113.11
+          hcloud_private_ip: 10.0.1.11
     agent_nodes:
       hosts:
         wk-01:
-          ansible_host: 10.0.1.21
+          ansible_host: 203.0.113.21
+          hcloud_private_ip: 10.0.1.21
     proxy_hosts:
       hosts:
         px-01:
-          ansible_host: 10.0.1.31
+          ansible_host: 203.0.113.31
+          hcloud_private_ip: 10.0.1.31
     vault:
       hosts:
         vault-01:
-          ansible_host: 10.0.1.41
+          ansible_host: 203.0.113.41
+          hcloud_private_ip: 10.0.1.41
+    ungrouped:
+      hosts:
+        db-01:
+          ansible_host: 203.0.113.51
+          hcloud_private_ip: 10.0.1.51
 ```
 
 Note: the static inventory is generated from the `hcloud_provisioned_servers`
-role fact set by `outputs.yml`. It only contains servers created in the same run
-(not previously existing servers).
+role fact set by `outputs.yml`. It contains every `hcloud_servers` entry with
+`state: present`, read back with `server_info` after the network attachments,
+so private IPs are filled in on the first run. Absent servers are left out.
 
 ---
 
@@ -120,7 +144,7 @@ role fact set by `outputs.yml`. It only contains servers created in the same run
 Run your configuration plays against the produced groups with either hand-off.
 
 With the dynamic inventory plugin (`hcloud.yml` is your hcloud inventory plugin
-config — you provide this file; see
+config - you provide this file; see
 [hcloud inventory plugin docs](https://docs.ansible.com/ansible/latest/collections/hetzner/hcloud/hcloud_inventory.html)):
 
 ```bash

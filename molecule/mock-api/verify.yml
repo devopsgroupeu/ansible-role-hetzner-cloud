@@ -1,0 +1,466 @@
+---
+# =============================================================================
+# verify.yml - assert on the mock API request log
+#
+# First the log left by converge + idempotence, then each case in cases/ on a
+# freshly seeded mock (see tasks/run_case.yml).
+# =============================================================================
+
+- name: Verify (assert on mock Hetzner API requests)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    mock_url: "{{ lookup('ansible.builtin.env', 'HCLOUD_ENDPOINT') }}"
+    assigned_fip_seed:
+      servers:
+        - id: 42
+          name: proxy-01
+          location: nbg1
+      floating_ips:
+        - id: 7
+          name: ingress-vip
+          home_location: nbg1
+          set:
+            server: 42
+
+  tasks:
+    - name: Read the request log of converge + idempotence
+      ansible.builtin.uri:
+        url: "{{ mock_url }}/__mock/log"
+        return_content: true
+      register: converge_log
+
+    - name: Read the floating IP state after converge
+      ansible.builtin.uri:
+        url: "{{ mock_url }}/floating_ips?name=ingress-vip"
+        headers:
+          Authorization: Bearer mock
+        return_content: true
+      register: converge_fip
+
+    - name: Assert converge kept the runtime floating IP assignment
+      ansible.builtin.assert:
+        that:
+          - converge_log.json.requests | select('search', '/floating_ips/7/actions/unassign') | list | length == 0
+          - converge_fip.json.floating_ips[0].server == 42
+          - converge_log.json.requests | select('match', 'POST /volumes$') | list | length == 1
+        fail_msg: >-
+          Converge detached the floating IP or did not create the volume once.
+          Requests: {{ converge_log.json.requests }}
+        success_msg: "Floating IP stayed on proxy-01; volume created once with server: ''"
+
+    - name: Case - delete an assigned floating IP
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        case:
+          name: fip_absent
+          playbook: fip_absent.yml
+          seed: "{{ assigned_fip_seed }}"
+
+    - name: Assert the floating IP was unassigned, then deleted
+      ansible.builtin.assert:
+        that:
+          - mock_case_runs.results[0].rc == 0
+          - "'POST /floating_ips/7/actions/unassign' in mock_requests"
+          - "'DELETE /floating_ips/7' in mock_requests"
+          - >-
+            mock_requests.index('POST /floating_ips/7/actions/unassign')
+            < mock_requests.index('DELETE /floating_ips/7')
+        fail_msg: >-
+          Deleting an assigned floating IP did not unassign then delete it.
+          Requests: {{ mock_requests }}
+          Output: {{ mock_case_runs.results[0].stdout_lines | default([]) | last }}
+        success_msg: "Assigned floating IP was unassigned, then deleted"
+
+    - name: Case - scope a run with --tags servers
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        case:
+          name: tags_servers
+          playbook: tags_servers.yml
+          args:
+            - --tags
+            - servers
+
+    - name: Assert --tags servers reached the servers API and nothing else
+      ansible.builtin.assert:
+        that:
+          - mock_case_runs.results[0].rc == 0
+          - "'GET /servers?name=cp-01' in mock_requests"
+          - "'POST /servers' in mock_requests"
+          - mock_requests | select('search', '/networks') | list | length == 0
+        fail_msg: >-
+          --tags servers did not run exactly the server tasks.
+          Requests: {{ mock_requests }}
+          Output: {{ mock_case_runs.results[0].stdout_lines | default([]) | last }}
+        success_msg: "--tags servers ran the server tasks only"
+
+    - name: Case - full teardown in a single pass, twice
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        case:
+          name: teardown
+          playbook: teardown.yml
+          runs: 2
+          seed:
+            ssh_keys:
+              - name: ops-key
+                public_key: ssh-ed25519 AAAAmock
+            networks:
+              - id: 300
+                name: prod-net
+                ip_range: 10.0.0.0/16
+                subnets:
+                  - type: cloud
+                    ip_range: 10.0.1.0/24
+                    network_zone: eu-central
+                    gateway: 10.0.0.1
+            firewalls:
+              - name: k8s-cp-fw
+                apply_to:
+                  - type: label_selector
+                    label_selector:
+                      selector: role=control-plane
+              - name: k8s-worker-fw
+            placement_groups:
+              - name: cp-spread
+                type: spread
+            servers:
+              - {id: 201, name: cp-01, placement_group: cp-spread, firewalls: [k8s-cp-fw], networks: [prod-net]}
+              - {id: 202, name: cp-02, placement_group: cp-spread, firewalls: [k8s-cp-fw], networks: [prod-net]}
+              - {id: 203, name: cp-03, placement_group: cp-spread, firewalls: [k8s-cp-fw], networks: [prod-net]}
+              - {id: 204, name: wk-01, firewalls: [k8s-worker-fw]}
+              - {id: 205, name: wk-02, firewalls: [k8s-worker-fw]}
+            floating_ips:
+              - {id: 7, name: ingress-vip, set: {server: 201}}
+            # Assigned to the running wk-01: the mock, like Hetzner, refuses
+            # to unassign it until the server is off or deleted.
+            primary_ips:
+              - {id: 700, name: wk-01-ipv4, type: ipv4, set: {assignee_id: 204}}
+            volumes:
+              - {id: 400, name: vault-data, size: 20, set: {server: 201}}
+            load_balancers:
+              - id: 500
+                name: api-lb
+                set:
+                  private_net:
+                    - {network: 300, ip: 10.0.1.250}
+                  services:
+                    - {protocol: tcp, listen_port: 6443, destination_port: 6443}
+
+    - name: Assert one teardown pass deletes everything in reverse order
+      vars:
+        # Request kinds in the expected teardown order; each request maps to
+        # the index of the kind it matches, and that list must be sorted.
+        markers:
+          - DELETE /load_balancers/
+          - DELETE /volumes/
+          - DELETE /floating_ips/
+          - /actions/detach_from_network
+          - DELETE /servers/
+          - DELETE /primary_ips/
+          - DELETE /placement_groups/
+          - DELETE /firewalls/
+          - /actions/delete_subnet
+          - DELETE /networks/
+          - DELETE /ssh_keys/
+        kinds: >-
+          {% set ns = namespace(kinds=[]) %}{% for r in mock_requests %}{% for m in markers %}{% if m in r %}{% set ns.kinds = ns.kinds + [loop.index0] %}{% endif %}{% endfor %}{% endfor %}{{ ns.kinds }}
+      ansible.builtin.assert:
+        that:
+          - mock_case_runs.results | map(attribute='rc') | list == [0, 0]
+          - kinds == (kinds | sort)
+          - kinds | unique | list == range(markers | length) | list
+          - mock_requests | select('match', 'DELETE ') | list | length == 14
+          - mock_requests | select('search', '/primary_ips/700/actions/unassign') | list | length == 0
+          - mock_requests | select('search', '/load_balancers/500/actions/') | list | length == 0
+        fail_msg: >-
+          Teardown failed, was not re-runnable or ran out of order.
+          Request kinds: {{ kinds }}. Requests: {{ mock_requests }}
+          Outputs: {{ mock_case_runs.results | map(attribute='stdout_lines') | map('last') | list }}
+        success_msg: "Teardown ran in reverse dependency order and was re-runnable"
+
+    - name: Case - primary IPs with default location and server assignment
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        case:
+          name: primary_ips
+          playbook: primary_ips.yml
+          seed:
+            servers:
+              - id: 42
+                name: proxy-01
+                set:
+                  status: "off"
+
+    - name: Assert primary IPs got the right location or assignee
+      vars:
+        ips: "{{ mock_state.primary_ips | items2dict(key_name='name', value_name='location') }}"
+        assigned: "{{ mock_state.primary_ips | selectattr('name', 'eq', 'proxy-01-ipv4') | first }}"
+      ansible.builtin.assert:
+        that:
+          - mock_case_runs.results[0].rc == 0
+          - mock_state.primary_ips | length == 3
+          - ips['cp-01-ipv4'].name == 'fsn1'
+          - ips['cp-02-ipv4'].name == 'hel1'
+          - assigned.assignee_id == 42
+        fail_msg: >-
+          Primary IPs were not created as configured.
+          State: {{ mock_state.primary_ips }}
+          Output: {{ mock_case_runs.results[0].stdout_lines | default([]) | last }}
+        success_msg: "Primary IPs: explicit location, default location and server assignment"
+
+    - name: Case - outputs after create, attach and delete in one run
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        case:
+          name: server_outputs
+          playbook: server_outputs.yml
+          seed:
+            servers:
+              - name: cp-02
+
+    - name: Read the inventory written by the case
+      ansible.builtin.slurp:
+        src: "{{ lookup('ansible.builtin.env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/server_outputs_inventory.yml"
+      register: server_outputs_inv
+      when: mock_case_runs.results[0].rc == 0
+
+    - name: Assert the inventory holds the refreshed server with its private IP
+      vars:
+        inv: "{{ server_outputs_inv.content | default('') | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - mock_case_runs.results[0].rc == 0
+          - mock_requests | select('match', 'DELETE /servers/') | list | length == 1
+          - inv.all.children.server_nodes.hosts['cp-01'].ansible_host | length > 0
+          - inv.all.children.server_nodes.hosts['cp-01'].hcloud_private_ip == '10.99.1.10'
+          - "'cp-02' not in (server_outputs_inv.content | default('') | b64decode)"
+        fail_msg: >-
+          Outputs after a mixed run are wrong.
+          Output: {{ mock_case_runs.results[0].stdout_lines | default([]) | last }}
+        success_msg: "Inventory built from refreshed state, private IP set on the first run"
+
+    - name: Case - firewall bindings to a new server and label selectors, twice
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        case:
+          name: firewall_bindings
+          playbook: firewall_bindings.yml
+          runs: 2
+          seed:
+            servers:
+              - id: 610
+                name: old-01
+            firewalls:
+              - id: 600
+                name: web-fw
+                labels:
+                  managed-by: ansible-hetzner-cloud
+                apply_to:
+                  - type: label_selector
+                    label_selector:
+                      selector: role=old
+                  - type: server
+                    server:
+                      id: 610
+
+    # Two apply_to_resources calls on the first run: the label selector
+    # before the server is created (no window without the firewall), then
+    # the server entry once web-01 exists. Two remove_from_resources calls:
+    # role=old and old-01; the missing gone-01 must not stop the old-01 one.
+    - name: Assert the firewall was bound and the absent binding removed once
+      vars:
+        server_id: "{{ (mock_state.servers | selectattr('name', 'eq', 'web-01') | first).id }}"
+        applied: "{{ mock_state.firewalls[0].applied_to }}"
+        selectors: "{{ applied | selectattr('type', 'eq', 'label_selector') | map(attribute='label_selector.selector') | list }}"
+        bound_servers: "{{ applied | selectattr('type', 'eq', 'server') | map(attribute='server.id') | list }}"
+      ansible.builtin.assert:
+        that:
+          - mock_case_runs.results | map(attribute='rc') | list == [0, 0]
+          - mock_requests | select('match', 'POST /firewalls/600/actions/apply_to_resources') | list | length == 2
+          - >-
+            mock_requests.index('POST /firewalls/600/actions/apply_to_resources')
+            < mock_requests.index('POST /servers')
+          - mock_requests | select('match', 'POST /firewalls/600/actions/remove_from_resources') | list | length == 2
+          - selectors == ['role=web']
+          - bound_servers == [server_id | int]
+          - mock_case_runs.results[1].stdout_lines | last is search('changed=0')
+        fail_msg: >-
+          Firewall bindings are wrong or not idempotent.
+          Applied to: {{ applied }}. Requests: {{ mock_requests }}
+          Outputs: {{ mock_case_runs.results | map(attribute='stdout_lines') | map('last') | list }}
+        success_msg: "role=web bound before the server was created, then the new server; role=old and old-01 removed despite gone-01; second run unchanged"
+
+    - name: Case - apply_to server next to the server's firewalls list, twice
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        case:
+          name: firewall_server_list
+          playbook: firewall_server_list.yml
+          runs: 2
+
+    - name: Assert the server keeps both firewalls and the second run is unchanged
+      vars:
+        server: "{{ mock_state.servers | selectattr('name', 'eq', 'web-01') | first | default({}) }}"
+        fw_ids: "{{ mock_state.firewalls | map(attribute='id') | list | sort }}"
+      ansible.builtin.assert:
+        that:
+          - mock_case_runs.results | map(attribute='rc') | list == [0, 0]
+          - server.public_net.firewalls | map(attribute='id') | list | sort == fw_ids
+          - mock_requests | select('search', '/actions/remove_from_resources') | list | length == 0
+          - mock_case_runs.results[1].stdout_lines | last is search('changed=0')
+        fail_msg: >-
+          The apply_to server binding and the server's firewalls list fought.
+          Requests: {{ mock_requests }}
+          Outputs: {{ mock_case_runs.results | map(attribute='stdout_lines') | map('last') | list }}
+        success_msg: "Firewall bound by apply_to and by the server list stays put; second run unchanged"
+
+    - name: Case - location-only volume attached at server creation, twice
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        case:
+          name: volumes_first
+          playbook: volumes_first.yml
+          runs: 2
+
+    - name: Assert the volume was created before the server that attaches it
+      vars:
+        server: "{{ mock_state.servers | selectattr('name', 'eq', 'db-01') | first | default({}) }}"
+        volume: "{{ mock_state.volumes | selectattr('name', 'eq', 'data-01') | first | default({}) }}"
+      ansible.builtin.assert:
+        that:
+          - mock_case_runs.results | map(attribute='rc') | list == [0, 0]
+          - mock_requests | select('match', 'POST /volumes$') | list | length == 1
+          - mock_requests.index('POST /volumes') < mock_requests.index('POST /servers')
+          - volume.server == server.id
+          - mock_case_runs.results[1].stdout_lines | last is search('changed=0')
+        fail_msg: >-
+          Location-only volume was not usable by a server in the same run.
+          Requests: {{ mock_requests }}
+          Outputs: {{ mock_case_runs.results | map(attribute='stdout_lines') | map('last') | list }}
+        success_msg: "Volume created before the server, attached at creation, second run unchanged"
+
+    - name: Case - check mode with provisioning enabled
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        case:
+          name: check_mode
+          playbook: check_mode.yml
+          args:
+            - --check
+
+    - name: Assert check mode passed preflight and changed nothing
+      ansible.builtin.assert:
+        that:
+          - mock_case_runs.results[0].rc == 0
+          - mock_case_runs.results[0].stdout is search('hetzner.hcloud [0-9.]+ is supported')
+          - "'GET /ssh_keys?name=ops-key' in mock_requests"
+          - mock_requests | reject('match', 'GET ') | list | length == 0
+        fail_msg: >-
+          --check failed or sent a mutating request.
+          Requests: {{ mock_requests }}
+          Output: {{ mock_case_runs.results[0].stdout_lines | default([]) | last }}
+        success_msg: "--check passed preflight and only read from the API"
+
+    - name: Case - unsupported collection version
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        case:
+          name: preflight_version
+          playbook: check_mode.yml
+          env:
+            PATH: "{{ playbook_dir }}/files/fake-galaxy:{{ lookup('ansible.builtin.env', 'PATH') }}"
+
+    - name: Assert preflight refused the unsupported version before any API call
+      ansible.builtin.assert:
+        that:
+          - mock_case_runs.results[0].rc != 0
+          - (mock_case_runs.results[0].stdout ~ mock_case_runs.results[0].stderr) is search('hetzner.hcloud 8.0.0 found')
+          - mock_requests | length == 0
+        fail_msg: >-
+          Preflight accepted hetzner.hcloud 8.0.0 or called the API.
+          Requests: {{ mock_requests }}
+          Output: {{ mock_case_runs.results[0].stdout_lines | default([]) | last }}
+        success_msg: "Preflight refused hetzner.hcloud 8.0.0"
+
+    - name: Case - server pass-through options, twice
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        case:
+          name: server_options
+          playbook: server_options.yml
+          runs: 2
+
+    - name: Assert private networks, Primary IP and protection reached the API
+      vars:
+        net: "{{ mock_state.networks | selectattr('name', 'eq', 'priv-net') | first | default({}) }}"
+        pip: "{{ mock_state.primary_ips | selectattr('name', 'eq', 'app-ipv4') | first | default({}) }}"
+        priv: "{{ mock_state.servers | selectattr('name', 'eq', 'priv-01') | first | default({}) }}"
+        app: "{{ mock_state.servers | selectattr('name', 'eq', 'app-01') | first | default({}) }}"
+      ansible.builtin.assert:
+        that:
+          - mock_case_runs.results | map(attribute='rc') | list == [0, 0]
+          - priv.public_net.ipv4 is none
+          - priv.private_net | map(attribute='network') | list == [net.id]
+          - priv.placement_group is none
+          - app.public_net.ipv4.id == pip.id
+          - pip.assignee_id == app.id
+          - app.protection.delete and app.protection.rebuild
+          - mock_case_runs.results[1].stdout_lines | last is search('changed=0')
+        fail_msg: >-
+          Server pass-through options were not applied or not idempotent.
+          Servers: {{ mock_state.servers }}
+          Outputs: {{ mock_case_runs.results | map(attribute='stdout_lines') | map('last') | list }}
+        success_msg: "private_networks, ipv4 Primary IP and protection applied; second run unchanged"
+
+    # The shipped dynamic inventory snippet, run through the real
+    # hetzner.hcloud.hcloud plugin (it honours HCLOUD_ENDPOINT too).
+    - name: Seed servers for the dynamic inventory snippet
+      ansible.builtin.uri:
+        url: "{{ mock_url }}/__mock/reset"
+        method: POST
+        body_format: json
+        body:
+          seed:
+            networks:
+              - id: 300
+                name: prod-net
+                ip_range: 10.0.0.0/16
+            servers:
+              - {name: cp-01, networks: [prod-net], labels: {managed-by: ansible-hetzner-cloud, role: control-plane}}
+              - {name: wk-01, networks: [prod-net], labels: {managed-by: ansible-hetzner-cloud, role: worker}}
+              - {name: db-01, networks: [prod-net], labels: {managed-by: ansible-hetzner-cloud, role: database}}
+              - {name: off-net-01, labels: {managed-by: ansible-hetzner-cloud, role: worker}}
+
+    # YAML output: the JSON output wraps plugin values as unsafe objects.
+    - name: Build the dynamic inventory from examples/inventory/hcloud.yml
+      ansible.builtin.command:
+        argv:
+          - ansible-inventory
+          - -i
+          - "{{ lookup('ansible.builtin.env', 'MOLECULE_PROJECT_DIRECTORY') }}/examples/inventory/hcloud.yml"
+          - --list
+          - --yaml
+      environment:
+        ANSIBLE_NOCOLOR: "1"
+      register: dynamic_inventory
+      changed_when: false
+
+    - name: Assert the snippet groups servers by role and connects over the private IP
+      vars:
+        groups_: "{{ (dynamic_inventory.stdout | from_yaml).all.children }}"
+        cp01: "{{ groups_.hcloud.hosts['cp-01'] }}"
+      ansible.builtin.assert:
+        that:
+          - groups_.server_nodes.hosts.keys() | list == ['cp-01']
+          - groups_.agent_nodes.hosts.keys() | list == ['wk-01']
+          - groups_.hcloud.hosts.keys() | list | sort == ['cp-01', 'db-01', 'wk-01']
+          - cp01.ansible_host == '10.0.1.10'
+          - cp01.hcloud_private_ipv4 == '10.0.1.10'
+        fail_msg: >-
+          The dynamic inventory snippet does not group or address servers as documented.
+          Inventory: {{ dynamic_inventory.stdout }}
+        success_msg: "examples/inventory/hcloud.yml groups by hcloud_labels.role and uses the private IP"

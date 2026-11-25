@@ -1,0 +1,23 @@
+---
+# A location-only volume listed in a server's 'volumes': the volume must exist
+# before the server is created, on the first run.
+- name: Case - location-only volume attached at server creation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    hcloud_volumes:
+      - name: data-01
+        size: 10
+        location: fsn1
+    hcloud_servers:
+      - name: db-01
+        server_type: cx23
+        location: fsn1
+        volumes:
+          - data-01
+
+  roles:
+    - ansible-role-hetzner-cloud

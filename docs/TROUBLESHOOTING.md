@@ -65,6 +65,20 @@ ansible-playbook site.yml -e hcloud_provision=false
 
 The offline molecule scenario (`molecule test -s default`) uses this approach and requires no token.
 
+### `could not resolve the module_defaults group hetzner.hcloud.all`
+
+**Symptom:** The play fails before any task runs with `Error loading module_defaults: could not resolve the module_defaults group hetzner.hcloud.all`.
+
+**Cause:** The `hetzner.hcloud` collection is not installed (or not on `ANSIBLE_COLLECTIONS_PATH`). Ansible resolves the role's `module_defaults` group when it loads the play, so this happens before the role's preflight check can run.
+
+**Fix:** `ansible-galaxy collection install -r requirements.yml`.
+
+### `hetzner.hcloud X found; this role needs >=6.9.0,<8.0.0`
+
+**Cause:** The preflight check found a collection version outside the supported range (`0.0.0` means `ansible-galaxy collection list` did not find it). The check reads the first match in collection search path order, which is the version Ansible loads, and also runs under `--check`.
+
+**Fix:** `ansible-galaxy collection install -r requirements.yml --force` (or remove the older copy that shadows it).
+
 ---
 
 ## Rate limits
@@ -92,15 +106,15 @@ loop_control:
 
 ### Server already exists with different attributes
 
-**Symptom:** Attempting to change `server_type`, `image`, or `location` on an existing server causes a module error.
+**Symptom:** Changing `server_type`, `image`, or `location` on an existing server has no effect, or a resize warns `You can not upgrade a running instance`.
 
-**Cause:** These attributes are immutable after server creation. The `hcloud.server` module does not silently recreate servers when immutable attributes change.
+**Cause:** `image` and `location` are create-time only; the `hetzner.hcloud.server` module never recreates a server. A `server_type` change needs the server powered off.
 
 **Fix:**
 
-- To resize: use `force: true` or `force_upgrade: true` (requires a server power-off).
-- To rebuild with a new image: set `state: rebuild` in the task (advanced use case).
-- To change location: destroy and recreate (set `state: absent` then `state: present`).
+- To resize: change `server_type` and set `force: true` on that `hcloud_servers` entry so the module may power the server off (add `upgrade_disk: true` to grow the disk too; such a server can no longer be downgraded).
+- To rebuild with a new image: not wrapped by this role (per-server `state` is only `present` or `absent`); call `hetzner.hcloud.server` with `state: rebuild` directly.
+- To change location: destroy and recreate (set `state: absent` with `hcloud_allow_teardown: true`, then `state: present`).
 
 ### SSH keys not appearing on an existing server
 
@@ -126,7 +140,7 @@ loop_control:
 
 **Cause:** `hcloud_allow_teardown: false` (the default) prevents any accidental destruction.
 
-**Fix:** Always pass teardown permission explicitly on the CLI — never set it to `true` in a vars file committed to the repo:
+**Fix:** Always pass teardown permission explicitly on the CLI - never set it to `true` in a vars file committed to the repo:
 
 ```bash
 ansible-playbook teardown.yml \
@@ -138,17 +152,22 @@ ansible-playbook teardown.yml \
 
 **Symptom:** Resources still appear in the Hetzner Cloud console after running with `state: absent`.
 
-**Cause:** Dependency order — the API refuses to delete a network that still has servers attached, or a server that has volumes attached.
+**Cause:** The resource is missing from the teardown vars, or its entry does not resolve to `state: absent` (per-item `state` overrides `hcloud_state`).
 
-**Fix:** Follow the reverse dependency order for teardown:
-1. `server_networks` (detach before deleting servers)
-2. `servers`
-3. `floating_ips`, `primary_ips`, `volumes`
-4. `subnetworks`
-5. `networks`
-6. `firewalls`, `placement_groups`, `ssh_keys`
+**Fix:** List every resource to remove with `state: absent` (or set `hcloud_state: absent`). The role runs present items first, then deletes absent items in reverse dependency order:
+1. `load_balancers` (deleting the LB removes its services, targets and network attachment)
+2. `volumes`
+3. `floating_ips` (unassigned first)
+4. `server_networks` (detach before deleting servers)
+5. `servers`
+6. `primary_ips` (after the servers: Hetzner only unassigns a Primary IP from a powered-off server, and deleting the server releases it)
+7. `placement_groups`
+8. `firewalls` (removed from remaining label selectors first)
+9. `subnetworks`
+10. `networks`
+11. `ssh_keys`
 
-The `examples/teardown.yml` demonstrates the correct ordering.
+Deleting a subnet or attachment whose parent is already gone is treated as done, so a teardown can be re-run. `examples/teardown.yml` removes everything in one pass.
 
 ---
 
@@ -158,11 +177,11 @@ The `examples/teardown.yml` demonstrates the correct ordering.
 
 The `default` molecule scenario is deliberately offline-safe. It sets `hcloud_provision: false`, which stops the role before any `hetzner.hcloud.*` module is invoked. No token is needed.
 
-Do not attempt to use `--check` mode as an offline substitute — the collection still authenticates and queries the live API even under `--check`.
+Do not attempt to use `--check` mode as an offline substitute - the collection still authenticates and queries the live API even under `--check`.
 
 ### `molecule test -s live` requires a real token
 
-The `live` scenario creates actual Hetzner Cloud resources. It is not part of the default CI pipeline. To run it:
+The `live` scenario creates actual Hetzner Cloud resources. It is not part of the default CI pipeline; CI runs it only when started by hand (the `Live` workflow, `workflow_dispatch`, with the `HCLOUD_TOKEN` repository secret). To run it locally:
 
 ```bash
 export HCLOUD_TOKEN="your-throwaway-project-token"

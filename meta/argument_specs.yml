@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# meta/argument_specs.yml — role argument specification
+# meta/argument_specs.yml - role argument specification
 #
 # 1:1 with defaults/main.yml. Every defaults key has an entry here.
 # ansible-core validates passed vars against this spec before any task runs,
@@ -26,10 +26,9 @@ argument_specs:
       hcloud_api_token:
         type: str
         required: false
-        default: ""
         description: >
-          Hetzner Cloud API token. Resolved from the HCLOUD_TOKEN environment
-          variable when not explicitly set. Source from HashiCorp Vault or
+          Hetzner Cloud API token. Defaults to the HCLOUD_TOKEN environment
+          variable (see defaults/main.yml). Source from HashiCorp Vault or
           Ansible Vault at consume time. Never hardcode in the repository.
 
       # ── Global behaviour ──────────────────────────────────────────────────
@@ -115,6 +114,19 @@ argument_specs:
         description: >
           Destination file path for the rendered static inventory. Required
           (non-empty) when hcloud_write_inventory is true.
+
+      hcloud_inventory_groups:
+        type: dict
+        required: false
+        default:
+          server_nodes: control-plane
+          agent_nodes: worker
+          proxy_hosts: proxy
+          vault: vault
+        description: >
+          Groups of the static inventory, as group name -> value of the
+          servers' 'role' label. Servers whose role label matches no value, or
+          that have no role label, are written under 'ungrouped'.
 
       # ── SSH keys ──────────────────────────────────────────────────────────
       hcloud_ssh_keys:
@@ -212,7 +224,9 @@ argument_specs:
               - cloud
               - server
               - vswitch
-            description: Subnet type.
+            description: >
+              Subnet type. 'server' is deprecated by Hetzner (removed
+              2027-04-15); use 'cloud', which is functionally equivalent.
           network_zone:
             type: str
             required: true
@@ -240,8 +254,8 @@ argument_specs:
         required: false
         default: []
         description: >
-          Firewall resources with embedded rules and optional label-selector
-          bindings. Rules are managed declaratively.
+          Firewall resources with embedded rules and optional server or
+          label-selector bindings (apply_to). Rules are managed declaratively.
         options:
           name:
             type: str
@@ -301,8 +315,37 @@ argument_specs:
             required: false
             default: []
             description: >
-              List of resource selectors to auto-attach this firewall to
-              (e.g. [{label_selector: "role=control-plane"}]).
+              Resources to bind this firewall to (e.g.
+              [{label_selector: "role=control-plane"}, {server: cp-01}]).
+              Label selectors are bound before the servers are created,
+              server entries after the servers.
+              Bindings are additive: removing an entry does not unbind it;
+              keep the entry with state=absent to remove the binding.
+            mutually_exclusive:
+              - [label_selector, server]
+            required_one_of:
+              - [label_selector, server]
+            options:
+              label_selector:
+                type: str
+                required: false
+                description: Label selector to bind (e.g. "role=control-plane").
+              server:
+                type: str
+                required: false
+                description: >
+                  Server name to bind. If that server's hcloud_servers entry
+                  sets 'firewalls', the list must include this firewall (and
+                  must not, for state=absent); validation rejects a mismatch.
+              state:
+                type: str
+                required: false
+                choices:
+                  - present
+                  - absent
+                description: >
+                  present (default) binds the resource; absent removes the
+                  binding and requires hcloud_allow_teardown=true.
           labels:
             type: dict
             required: false
@@ -357,6 +400,8 @@ argument_specs:
         description: >
           Compute instances. Resource lists for SSH keys, firewalls, etc. must
           be populated before servers to satisfy dependency order.
+        required_together:
+          - [delete_protection, rebuild_protection]
         options:
           name:
             type: str
@@ -366,19 +411,25 @@ argument_specs:
             type: str
             required: false
             description: >
-              Hetzner Cloud server type slug (e.g. cx22, cx32, cx42).
+              Hetzner Cloud server type slug (e.g. cx23, cx33, cx43).
               Required when state=present.
           image:
             type: str
             required: false
             description: >
               OS image slug. Defaults to hcloud_default_image.
+          image_allow_deprecated:
+            type: bool
+            required: false
+            description: >
+              Allow creating the server from a deprecated image.
           location:
             type: str
             required: false
             description: >
               Location slug (e.g. fsn1, nbg1). Defaults to hcloud_default_location.
-              Use location, not the deprecated datacenter param.
+              Placement is by location only (Hetzner removed 'datacenter' on
+              2026-07-01).
           ssh_keys:
             type: list
             elements: str
@@ -390,7 +441,11 @@ argument_specs:
             elements: str
             required: false
             default: []
-            description: List of firewall names to apply.
+            description: >
+              List of firewall names to apply. When set, hetzner.hcloud.server
+              enforces it as the server's complete list and removes any other
+              firewall, so it must include every firewall that binds this
+              server through apply_to 'server' (checked by validation).
           placement_group:
             type: str
             required: false
@@ -400,12 +455,15 @@ argument_specs:
             elements: str
             required: false
             default: []
-            description: Volume names/IDs to attach at creation time.
+            description: >
+              Volume names/IDs to attach at creation time. Volumes in
+              hcloud_volumes without 'server' are created before the servers,
+              so they can be listed here in the same run.
           user_data:
             type: str
             required: false
             description: >
-              Cloud-init user-data string. May contain join tokens — handled
+              Cloud-init user-data string. May contain join tokens - handled
               with no_log: true by the task.
           enable_ipv4:
             type: bool
@@ -422,12 +480,61 @@ argument_specs:
             required: false
             default: false
             description: Whether to enable automatic backups.
+          ipv4:
+            type: str
+            required: false
+            description: >
+              Name or ID of a Primary IP (from hcloud_primary_ips) to use as
+              the public IPv4. Needs enable_ipv4 true. Changing it on an
+              existing server needs force=true (the server is powered off).
+          ipv6:
+            type: str
+            required: false
+            description: >
+              Name or ID of a Primary IP to use as the public IPv6. Needs
+              enable_ipv6 true. Changing it on an existing server needs
+              force=true.
+          private_networks:
+            type: list
+            elements: str
+            required: false
+            description: >
+              Networks the server is attached to at creation (e.g. for
+              private-only servers with enable_ipv4/enable_ipv6 false). When
+              set, the list is authoritative: networks not listed are
+              detached. Use hcloud_server_networks instead for fixed private
+              IPs or alias IPs.
+          force:
+            type: bool
+            required: false
+            description: >
+              Allow the module to power the server off for changes that need
+              it (server_type resize, placement group, Primary IP).
+          upgrade_disk:
+            type: bool
+            required: false
+            description: >
+              Also grow the disk on a server_type change. A server with an
+              upgraded disk cannot be downgraded again.
+          delete_protection:
+            type: bool
+            required: false
+            description: >
+              Protect the server from deletion. Must be set together with
+              rebuild_protection (Hetzner sets both at once).
+          rebuild_protection:
+            type: bool
+            required: false
+            description: >
+              Protect the server from rebuilds. Must be set together with
+              delete_protection.
           labels:
             type: dict
             required: false
             default: {}
             description: >
-              Arbitrary labels. The managed-by label is always merged on top.
+              Arbitrary labels, merged over the managed-by label (a user label
+              with the same key overrides it).
               Use role/cluster labels for dynamic inventory grouping.
           state:
             type: str
@@ -497,19 +604,15 @@ argument_specs:
             type: str
             required: false
             description: >
-              Location slug for placement (e.g. fsn1, nbg1). Required when
-              state=present and no assignee. Use location, not the deprecated
-              datacenter param (scheduled for removal after 2026-07-01).
-          assignee_type:
+              Location slug for placement (e.g. fsn1, nbg1). Defaults to
+              hcloud_default_location unless 'server' is set. Placement is by
+              location only (Hetzner removed 'datacenter' on 2026-07-01).
+          server:
             type: str
             required: false
             description: >
-              Resource type the primary IP is assigned to (e.g. server).
-              Optional as of collection v6.9.0.
-          assignee_id:
-            type: int
-            required: false
-            description: Server ID to pre-assign this primary IP to.
+              Name of an existing, powered-off server to assign this primary IP
+              to. When omitted, the current assignment is left unchanged.
           auto_delete:
             type: bool
             required: false
@@ -564,7 +667,16 @@ argument_specs:
           server:
             type: str
             required: false
-            description: Server name to assign the floating IP to initially.
+            description: >
+              Server name to assign the floating IP to. When omitted, the
+              current assignment (e.g. set at runtime by keepalived) is kept.
+          unassign:
+            type: bool
+            required: false
+            default: false
+            description: >
+              Detach the floating IP from its current server. Without it the
+              role never unassigns an IP that has no 'server' configured.
           description:
             type: str
             required: false
