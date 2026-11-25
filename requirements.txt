@@ -7,4 +7,4 @@ yamllint>=1.35.0,<2.0.0
 # Runtime dependencies of the hetzner.hcloud collection (its own
 # requirements.txt). The hcloud Python SDK is vendored inside the collection.
 python-dateutil>=2.7.5
-requests>=2.20
+requests>=2.34.2
