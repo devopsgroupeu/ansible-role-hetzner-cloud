@@ -2,7 +2,8 @@
 """In-memory stand-in for the Hetzner Cloud API, used by molecule mock-api.
 
 Only what the role's modules call is modelled, with the conflict rules that
-matter for ordering (assigned IPs and in-use firewalls cannot be deleted).
+matter for ordering (assigned IPs and in-use firewalls cannot be deleted, a
+Primary IP can only be unassigned from a powered-off server).
 Every request is logged; the test harness reads and resets state through:
 
   GET  /__mock/log    -> {"requests": ["METHOD /path?query", ...]}
@@ -180,7 +181,15 @@ def attach_network(server, network, ip, alias_ips):
 
 def run_action(col, obj, name, body):
     """Apply the state change of POST /<col>/<id>/actions/<name>."""
-    if col == "floating_ips" and name == "assign":
+    if col == "primary_ips" and name == "unassign":
+        srv = by_id("servers", obj.get("assignee_id"))
+        if srv and srv["status"] != "off":
+            return 422, {"error": {"code": "server_not_stopped",
+                                   "message": "server must be powered off", "details": {}}}
+        obj["assignee_id"] = None
+    elif col == "primary_ips" and name == "assign":
+        obj["assignee_id"] = body.get("assignee_id")
+    elif col == "floating_ips" and name == "assign":
         obj["server"] = body.get("server")
     elif col == "floating_ips" and name == "unassign":
         obj["server"] = None
@@ -198,7 +207,7 @@ def run_action(col, obj, name, body):
             net["servers"] = [s for s in net["servers"] if s != obj["id"]]
     elif col == "firewalls" and name == "apply_to_resources":
         obj["applied_to"].extend(body.get("apply_to") or [])
-        return {"actions": [action(name)]}
+        return 201, {"actions": [action(name)]}
     elif col == "firewalls" and name == "remove_from_resources":
         gone = body.get("remove_from") or []
         obj["applied_to"] = [a for a in obj["applied_to"] if a not in gone]
@@ -206,10 +215,10 @@ def run_action(col, obj, name, body):
             srv["public_net"]["firewalls"] = [f for f in srv["public_net"]["firewalls"]
                                               if f["id"] != obj["id"] or
                                               {"type": "server", "server": {"id": srv["id"]}} not in gone]
-        return {"actions": [action(name)]}
+        return 201, {"actions": [action(name)]}
     elif col == "firewalls" and name == "set_rules":
         obj["rules"] = body.get("rules") or []
-        return {"actions": [action(name)]}
+        return 201, {"actions": [action(name)]}
     elif col == "servers" and name == "change_protection":
         obj["protection"] = {k: body.get(k, obj["protection"][k]) for k in ("delete", "rebuild")}
     elif col == "volumes" and name == "attach":
@@ -224,7 +233,7 @@ def run_action(col, obj, name, body):
         obj["services"] = [s for s in obj["services"] if s.get("listen_port") != body.get("listen_port")]
     elif col == "load_balancers" and name == "add_target":
         obj["targets"].append(body)
-    return {"action": action(name)}
+    return 201, {"action": action(name)}
 
 
 def delete(col, obj):
@@ -244,6 +253,12 @@ def delete(col, obj):
         for fip in STATE["res"]["floating_ips"]:
             if fip["server"] == obj["id"]:
                 fip["server"] = None
+        for pip in list(STATE["res"]["primary_ips"]):
+            if pip["assignee_id"] == obj["id"]:
+                if pip["auto_delete"]:
+                    STATE["res"]["primary_ips"].remove(pip)
+                else:
+                    pip["assignee_id"] = None
         return 200, {"action": action("delete_server")}
     if col == "load_balancers":
         return 200, {"action": action("delete_load_balancer")}
@@ -313,7 +328,8 @@ class Handler(BaseHTTPRequestHandler):
             code, resp = delete(col, obj)
             return self.send(code, resp)
         if len(parts) == 4 and parts[2] == "actions" and method == "POST":
-            return self.send(201, run_action(col, obj, parts[3], body))
+            code, resp = run_action(col, obj, parts[3], body)
+            return self.send(code, resp)
         if len(parts) == 4 and parts[2] == "actions" and method == "GET":
             return self.send(200, {"action": action()})
         return self.not_found()

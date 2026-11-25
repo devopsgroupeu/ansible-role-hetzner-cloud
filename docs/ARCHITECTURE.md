@@ -99,6 +99,8 @@ Resources are created in dependency order within a single play:
 11. Outputs: set `hcloud_provisioned_servers` fact; render static inventory
 
 Items with `state: absent` are skipped in that pass and deleted afterwards in
-reverse dependency order: load balancers, volumes, floating IPs, primary IPs,
-server-network attachments, servers, placement groups, firewalls, subnetworks,
-networks, SSH keys.
+reverse dependency order: load balancers, volumes, floating IPs,
+server-network attachments, servers, primary IPs, placement groups, firewalls,
+subnetworks, networks, SSH keys. Primary IPs go after the servers because
+Hetzner only unassigns a Primary IP from a powered-off server, while deleting
+the server releases it.

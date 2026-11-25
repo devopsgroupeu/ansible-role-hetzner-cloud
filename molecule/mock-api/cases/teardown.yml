@@ -1,7 +1,8 @@
 ---
 # Full teardown in one pass: the examples/teardown.yml var set plus a load
-# balancer and an attached volume. Run twice by verify.yml; the second run
-# hits an empty project and must succeed too.
+# balancer, an attached volume and a Primary IP assigned to a running server.
+# Run twice by verify.yml; the second run hits an empty project and must
+# succeed too.
 - name: Case - full teardown in a single pass
   hosts: localhost
   connection: local
@@ -43,6 +44,9 @@
       - name: ingress-vip
         type: ipv4
         home_location: fsn1
+    hcloud_primary_ips:
+      - name: wk-01-ipv4
+        type: ipv4
     hcloud_subnetworks:
       - network: prod-net
         type: cloud

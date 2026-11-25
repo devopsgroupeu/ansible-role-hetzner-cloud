@@ -135,6 +135,10 @@
               - {id: 205, name: wk-02, firewalls: [k8s-worker-fw]}
             floating_ips:
               - {id: 7, name: ingress-vip, set: {server: 201}}
+            # Assigned to the running wk-01: the mock, like Hetzner, refuses
+            # to unassign it until the server is off or deleted.
+            primary_ips:
+              - {id: 700, name: wk-01-ipv4, type: ipv4, set: {assignee_id: 204}}
             volumes:
               - {id: 400, name: vault-data, size: 20, set: {server: 201}}
             load_balancers:
@@ -156,6 +160,7 @@
           - DELETE /floating_ips/
           - /actions/detach_from_network
           - DELETE /servers/
+          - DELETE /primary_ips/
           - DELETE /placement_groups/
           - DELETE /firewalls/
           - /actions/delete_subnet
@@ -168,7 +173,8 @@
           - mock_case_runs.results | map(attribute='rc') | list == [0, 0]
           - kinds == (kinds | sort)
           - kinds | unique | list == range(markers | length) | list
-          - mock_requests | select('match', 'DELETE ') | list | length == 13
+          - mock_requests | select('match', 'DELETE ') | list | length == 14
+          - mock_requests | select('search', '/primary_ips/700/actions/unassign') | list | length == 0
           - mock_requests | select('search', '/load_balancers/500/actions/') | list | length == 0
         fail_msg: >-
           Teardown failed, was not re-runnable or ran out of order.

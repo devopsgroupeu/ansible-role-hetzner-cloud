@@ -157,14 +157,15 @@ ansible-playbook teardown.yml \
 **Fix:** List every resource to remove with `state: absent` (or set `hcloud_state: absent`). The role runs present items first, then deletes absent items in reverse dependency order:
 1. `load_balancers` (deleting the LB removes its services, targets and network attachment)
 2. `volumes`
-3. `floating_ips` (unassigned first), `primary_ips`
+3. `floating_ips` (unassigned first)
 4. `server_networks` (detach before deleting servers)
 5. `servers`
-6. `placement_groups`
-7. `firewalls` (removed from remaining label selectors first)
-8. `subnetworks`
-9. `networks`
-10. `ssh_keys`
+6. `primary_ips` (after the servers: Hetzner only unassigns a Primary IP from a powered-off server, and deleting the server releases it)
+7. `placement_groups`
+8. `firewalls` (removed from remaining label selectors first)
+9. `subnetworks`
+10. `networks`
+11. `ssh_keys`
 
 Deleting a subnet or attachment whose parent is already gone is treated as done, so a teardown can be re-run. `examples/teardown.yml` removes everything in one pass.
 

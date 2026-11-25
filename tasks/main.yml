@@ -294,8 +294,8 @@
 
     # Absent phase: delete in reverse dependency order, so children go before
     # their parents (LB before its network, attachments before servers,
-    # servers before the firewalls/placement groups they use, subnets before
-    # networks). Each task only acts on items whose state matches the phase.
+    # servers before the primary IPs/firewalls/placement groups they use,
+    # subnets before networks). Each task only acts on items whose state matches the phase.
     - name: Delete absent load balancers
       ansible.builtin.include_tasks:
         file: load_balancers.yml
@@ -344,22 +344,6 @@
         - hcloud
         - floating_ips
 
-    - name: Delete absent primary IPs
-      ansible.builtin.include_tasks:
-        file: primary_ips.yml
-        apply:
-          tags:
-            - hcloud
-            - primary_ips
-      vars:
-        _hcloud_phase: absent
-      when: >-
-        hcloud_primary_ips | map(attribute='state', default=hcloud_state)
-        | select('eq', 'absent') | list | length > 0
-      tags:
-        - hcloud
-        - primary_ips
-
     - name: Detach servers from networks
       ansible.builtin.include_tasks:
         file: server_networks.yml
@@ -393,6 +377,25 @@
       tags:
         - hcloud
         - servers
+
+    # After the servers: Hetzner only unassigns a Primary IP from a powered-off
+    # server, while deleting the server releases it (or deletes it when
+    # auto_delete is set).
+    - name: Delete absent primary IPs
+      ansible.builtin.include_tasks:
+        file: primary_ips.yml
+        apply:
+          tags:
+            - hcloud
+            - primary_ips
+      vars:
+        _hcloud_phase: absent
+      when: >-
+        hcloud_primary_ips | map(attribute='state', default=hcloud_state)
+        | select('eq', 'absent') | list | length > 0
+      tags:
+        - hcloud
+        - primary_ips
 
     - name: Delete absent placement groups
       ansible.builtin.include_tasks:

@@ -161,7 +161,7 @@ ansible-playbook examples/teardown.yml \
   --tags servers,server_networks
 ```
 
-The role deletes absent resources in reverse dependency order (load balancers, volumes, floating/primary IPs, server-network attachments, servers, placement groups, firewalls, subnetworks, networks, SSH keys) after creating or updating present ones, so a full teardown works in a single, re-runnable pass. Absent firewalls are detached from their remaining resources and assigned floating IPs are unassigned before deletion. See [`examples/teardown.yml`](examples/teardown.yml).
+The role deletes absent resources in reverse dependency order (load balancers, volumes, floating IPs, server-network attachments, servers, primary IPs, placement groups, firewalls, subnetworks, networks, SSH keys) after creating or updating present ones, so a full teardown works in a single, re-runnable pass. Absent firewalls are detached from their remaining resources and assigned floating IPs are unassigned before deletion. See [`examples/teardown.yml`](examples/teardown.yml).
 
 ---
 
