@@ -9,7 +9,8 @@
 #   2. hcloud_state value is valid
 #   3. Teardown guard — abort if any resource targets absent without explicit flag
 #   4. Required fields per resource list
-#   5. Inventory output prerequisites
+#   5. Firewall 'server' bindings agree with the server's 'firewalls' list
+#   6. Inventory output prerequisites
 # =============================================================================
 
 - name: Assert API token is present
@@ -112,6 +113,33 @@
   loop_control:
     label: "{{ item.name | default('UNNAMED') }}"
   when: hcloud_firewalls | length > 0
+
+# hetzner.hcloud.server treats a server's 'firewalls' list as complete and
+# removes any other firewall from the server, so an apply_to 'server' entry
+# that the list contradicts would be detached and re-attached on every run.
+- name: Validate firewall server bindings against server firewalls lists
+  ansible.builtin.assert:
+    that:
+      - >-
+        _hcloud_fw_server.firewalls is not defined
+        or ((item.1.state | default('present')) == 'absent')
+        != (item.0.name in _hcloud_fw_server.firewalls)
+    fail_msg: >-
+      Firewall '{{ item.0.name }}' has an apply_to entry for server
+      '{{ item.1.server }}', whose 'firewalls' list hetzner.hcloud.server
+      enforces as complete. For a present binding add '{{ item.0.name }}' to
+      that list (or drop 'firewalls' from the server); for a binding set to
+      absent remove it from the list.
+    success_msg: "Firewall '{{ item.0.name }}' binding to '{{ item.1.server }}' agrees with the server"
+  vars:
+    _hcloud_fw_server: "{{ hcloud_servers | selectattr('name', 'defined') | selectattr('name', 'eq', item.1.server) | first | default({}) }}"
+  loop: "{{ hcloud_firewalls | subelements('apply_to', skip_missing=True) }}"
+  loop_control:
+    label: "{{ item.0.name | default('UNNAMED') }} -> {{ item.1.server | default('') }}"
+  when:
+    - item.1.server is defined
+    - (item.0.state | default(hcloud_state)) == 'present'
+    - (_hcloud_fw_server.state | default(hcloud_state)) == 'present'
 
 - name: Validate required fields — placement groups
   ansible.builtin.assert:

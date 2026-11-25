@@ -176,6 +176,8 @@ Firewall rule sub-keys:
 
 Bindings are additive: deleting an entry from `apply_to` does **not** unbind the firewall, so its rules keep applying. To remove a binding, keep the entry with `state: absent` (this requires `hcloud_allow_teardown: true`), run the role, then delete the entry.
 
+A `server` entry must agree with that server's own `firewalls` list in `hcloud_servers`, if the server sets one: `hetzner.hcloud.server` enforces that list as complete, so a firewall bound through `apply_to` but missing from the list would be removed and re-added on every run (and the server would briefly lose its rules). Validation fails on a mismatch: list the firewall in the server's `firewalls` (or drop `firewalls` from that server) for a present binding, and remove it from the list for a binding set to `absent`.
+
 ---
 
 ## Placement Groups (`hcloud_placement_groups`)
@@ -231,7 +233,7 @@ hcloud_servers:
 | `image` | str | `hcloud_default_image` | No | OS image slug. |
 | `location` | str | `hcloud_default_location` | No | Location slug. Placement is by location only (Hetzner removed `datacenter` on 2026-07-01). |
 | `ssh_keys` | list[str] | `[]` | No | SSH key names to associate at creation time (create-time only). |
-| `firewalls` | list[str] | `[]` | No | Firewall names to apply. |
+| `firewalls` | list[str] | `[]` | No | Firewall names to apply. When set, the module enforces it as the server's complete list and removes any other firewall, so it must include every firewall that binds this server through `apply_to` `server` (validation rejects a mismatch). |
 | `placement_group` | str | — | No | Placement group name for anti-affinity scheduling. |
 | `volumes` | list[str] | `[]` | No | Volume names/IDs to attach at creation time. `hcloud_volumes` entries without `server` are created before the servers, so they can be listed here in the same run. |
 | `user_data` | str | — | No | Cloud-init user-data string. May contain join tokens; protected by `no_log`. |

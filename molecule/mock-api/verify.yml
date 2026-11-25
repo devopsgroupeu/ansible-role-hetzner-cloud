@@ -287,6 +287,30 @@
           Outputs: {{ mock_case_runs.results | map(attribute='stdout_lines') | map('last') | list }}
         success_msg: "role=web bound before the server was created, then the new server; role=old removed; second run unchanged"
 
+    - name: Case - apply_to server next to the server's firewalls list, twice
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        case:
+          name: firewall_server_list
+          playbook: firewall_server_list.yml
+          runs: 2
+
+    - name: Assert the server keeps both firewalls and the second run is unchanged
+      vars:
+        server: "{{ mock_state.servers | selectattr('name', 'eq', 'web-01') | first | default({}) }}"
+        fw_ids: "{{ mock_state.firewalls | map(attribute='id') | list | sort }}"
+      ansible.builtin.assert:
+        that:
+          - mock_case_runs.results | map(attribute='rc') | list == [0, 0]
+          - server.public_net.firewalls | map(attribute='id') | list | sort == fw_ids
+          - mock_requests | select('search', '/actions/remove_from_resources') | list | length == 0
+          - mock_case_runs.results[1].stdout_lines | last is search('changed=0')
+        fail_msg: >-
+          The apply_to server binding and the server's firewalls list fought.
+          Requests: {{ mock_requests }}
+          Outputs: {{ mock_case_runs.results | map(attribute='stdout_lines') | map('last') | list }}
+        success_msg: "Firewall bound by apply_to and by the server list stays put; second run unchanged"
+
     - name: Case - location-only volume attached at server creation, twice
       ansible.builtin.include_tasks: tasks/run_case.yml
       vars:

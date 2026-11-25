@@ -353,7 +353,8 @@
 # =============================================================================
 # Fifth play: firewall apply_to entries are validated by argument_specs, so a
 # typo or an entry with both server and label_selector fails instead of
-# binding nothing.
+# binding nothing; validate.yml rejects a server binding that the server's
+# own 'firewalls' list contradicts.
 # =============================================================================
 - name: Verify invalid firewall apply_to entries are rejected
   hosts: all
@@ -403,15 +404,44 @@
           ansible.builtin.set_fact:
             apply_to_both_msg: "{{ ansible_failed_result.msg | default('') }}"
 
+    # The server module enforces 'firewalls' as complete, so this binding
+    # would be removed and re-added on every run.
+    - name: Run the role with an apply_to server missing from the server firewalls
+      block:
+        - name: Include hetzner-cloud role (expected to fail validation)
+          ansible.builtin.include_role:
+            name: ansible-role-hetzner-cloud
+          vars:
+            hcloud_firewalls:
+              - name: base-fw
+              - name: web-fw
+                apply_to:
+                  - server: web-01
+            hcloud_servers:
+              - name: web-01
+                server_type: cx23
+                firewalls:
+                  - base-fw
+
+        - name: Role accepted the conflicting binding (UNEXPECTED)
+          ansible.builtin.set_fact:
+            apply_to_conflict_msg: ""
+      rescue:
+        - name: Record the validation error
+          ansible.builtin.set_fact:
+            apply_to_conflict_msg: "{{ ansible_failed_result.results | default([]) | selectattr('failed', 'defined') | selectattr('failed') | map(attribute='msg') | join(' ') }}"
+
     - name: Assert invalid apply_to entries were rejected
       ansible.builtin.assert:
         that:
           - "'lable_selector' in apply_to_typo_msg"
           - "'mutually exclusive' in apply_to_both_msg"
+          - "\"Firewall 'web-fw' has an apply_to entry for server 'web-01'\" in apply_to_conflict_msg"
         fail_msg: >-
-          Invalid apply_to entries passed argument validation.
+          Invalid apply_to entries passed validation.
           Typo: '{{ apply_to_typo_msg }}'. Both keys: '{{ apply_to_both_msg }}'.
-        success_msg: "apply_to typos and ambiguous entries are rejected"
+          Conflict with server firewalls: '{{ apply_to_conflict_msg }}'.
+        success_msg: "apply_to typos, ambiguous entries and server firewalls conflicts are rejected"
 
 # =============================================================================
 # Sixth play: server entries reject unknown keys and a protection flag

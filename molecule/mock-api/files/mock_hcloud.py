@@ -207,6 +207,12 @@ def run_action(col, obj, name, body):
             net["servers"] = [s for s in net["servers"] if s != obj["id"]]
     elif col == "firewalls" and name == "apply_to_resources":
         obj["applied_to"].extend(body.get("apply_to") or [])
+        # Like Hetzner, a direct server binding shows up in the server's
+        # public_net.firewalls (the server module compares against it).
+        for res in body.get("apply_to") or []:
+            srv = by_id("servers", (res.get("server") or {}).get("id"))
+            if srv:
+                srv["public_net"]["firewalls"].append({"id": obj["id"], "status": "applied"})
         return 201, {"actions": [action(name)]}
     elif col == "firewalls" and name == "remove_from_resources":
         gone = body.get("remove_from") or []
