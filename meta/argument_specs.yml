@@ -315,8 +315,10 @@ argument_specs:
             required: false
             default: []
             description: >
-              Resources to bind this firewall to, applied after the servers
-              (e.g. [{label_selector: "role=control-plane"}, {server: cp-01}]).
+              Resources to bind this firewall to (e.g.
+              [{label_selector: "role=control-plane"}, {server: cp-01}]).
+              Label selectors are bound before the servers are created,
+              server entries after the servers.
               Bindings are additive: removing an entry does not unbind it;
               keep the entry with state=absent to remove the binding.
             mutually_exclusive:

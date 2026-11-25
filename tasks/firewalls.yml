@@ -8,8 +8,9 @@
 #         (both enforced in main.yml)
 #
 # Bindings (apply_to) are managed by firewall_bindings.yml, which main.yml
-# includes after the servers so that server bindings can target servers
-# created in the same run.
+# includes right after this file for label selectors (so a new server gets
+# the firewall at creation) and after the servers for 'server' entries (so
+# they can target servers created in the same run).
 # =============================================================================
 
 - name: Manage firewalls

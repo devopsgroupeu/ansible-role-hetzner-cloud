@@ -151,7 +151,7 @@ hcloud_firewalls:
 |---|---|---|---|
 | `name` | str | Yes | Firewall name. |
 | `rules` | list[dict] | No | List of firewall rule dicts (see below). |
-| `apply_to` | list[dict] | No | Bindings to servers or label selectors (see below). Applied after the servers, so a server created in the same run can be bound. |
+| `apply_to` | list[dict] | No | Bindings to servers or label selectors (see below). Label selectors are bound before the servers are created, so a matching new server has the firewall from the start; `server` entries are bound after the servers, so a server created in the same run can be bound. |
 | `labels` | dict | No | Arbitrary key/value labels. |
 | `state` | str | No | Per-resource state override. |
 

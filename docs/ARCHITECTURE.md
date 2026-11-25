@@ -84,12 +84,14 @@ Resources are created in dependency order within a single play:
 
 1. SSH keys
 2. Networks → subnetworks
-3. Firewalls
+3. Firewalls, then their label-selector bindings (`apply_to`), so a new
+   server matching the selector has the firewall from creation
 4. Placement groups
 5. Primary IPs (so servers can reference them), volumes without `server`
    (so servers can attach them at creation)
 6. Servers (reference SSH keys, firewalls, placement groups)
-   - Firewall bindings (`apply_to`), so servers created in the run can be bound
+   - Firewall `server` bindings (`apply_to`), so servers created in the run
+     can be bound
 7. Server-network attachments (reference servers and networks)
 8. Floating IPs
 9. Volumes with `server`

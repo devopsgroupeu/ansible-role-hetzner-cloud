@@ -4,8 +4,11 @@
 #
 # Module: hetzner.hcloud.firewall_resource
 # Loop:   hcloud_firewalls
-# Gate:   included by main.yml in the present phase, after the servers, so a
-#         'server' binding can target a server created in the same run.
+# Gate:   included twice by main.yml in the present phase, once per entry
+#         kind (_hcloud_fw_key): 'label_selector' right after the firewalls
+#         and before the servers, so Hetzner applies the firewall to a
+#         matching server when it is created; 'server' after the servers, so
+#         an entry can target a server created in the same run.
 #
 # Each apply_to entry holds exactly one of 'server' or 'label_selector'
 # (enforced by meta/argument_specs.yml). firewall_resource with
@@ -16,47 +19,45 @@
 # Absent firewalls are skipped: deleting the firewall removes its bindings.
 # =============================================================================
 
-- name: Bind firewalls to servers and label selectors
+- name: Bind firewalls to apply_to entries - {{ _hcloud_fw_key }}
   hetzner.hcloud.firewall_resource:
     firewall: "{{ item.name }}"
-    servers: "{{ _hcloud_fw_servers if _hcloud_fw_servers | length > 0 else omit }}"
-    label_selectors: "{{ _hcloud_fw_selectors if _hcloud_fw_selectors | length > 0 else omit }}"
+    servers: "{{ _hcloud_fw_targets if _hcloud_fw_key == 'server' else omit }}"
+    label_selectors: "{{ _hcloud_fw_targets if _hcloud_fw_key == 'label_selector' else omit }}"
     state: present
   vars:
     _hcloud_fw_entries: >-
       {{ (item.apply_to | default([]) | rejectattr('state', 'defined') | list)
          + (item.apply_to | default([]) | selectattr('state', 'defined')
             | selectattr('state', 'eq', 'present') | list) }}
-    _hcloud_fw_servers: "{{ _hcloud_fw_entries | selectattr('server', 'defined') | map(attribute='server') | list }}"
-    _hcloud_fw_selectors: "{{ _hcloud_fw_entries | selectattr('label_selector', 'defined') | map(attribute='label_selector') | list }}"
+    _hcloud_fw_targets: "{{ _hcloud_fw_entries | selectattr(_hcloud_fw_key, 'defined') | map(attribute=_hcloud_fw_key) | list }}"
   loop: "{{ hcloud_firewalls }}"
   loop_control:
-    label: "{{ item.name }} bindings"
+    label: "{{ item.name }} {{ _hcloud_fw_key }} bindings"
   when:
     - (item.state | default(hcloud_state)) == _hcloud_phase
     - (item.state | default(hcloud_state)) != 'absent'
-    - (_hcloud_fw_servers + _hcloud_fw_selectors) | length > 0
+    - _hcloud_fw_targets | length > 0
 
-- name: Unbind firewalls from entries set to absent
+- name: Unbind firewalls from apply_to entries set to absent - {{ _hcloud_fw_key }}
   hetzner.hcloud.firewall_resource:
     firewall: "{{ item.name }}"
-    servers: "{{ _hcloud_fw_servers if _hcloud_fw_servers | length > 0 else omit }}"
-    label_selectors: "{{ _hcloud_fw_selectors if _hcloud_fw_selectors | length > 0 else omit }}"
+    servers: "{{ _hcloud_fw_targets if _hcloud_fw_key == 'server' else omit }}"
+    label_selectors: "{{ _hcloud_fw_targets if _hcloud_fw_key == 'label_selector' else omit }}"
     state: absent
   vars:
     _hcloud_fw_entries: >-
       {{ item.apply_to | default([]) | selectattr('state', 'defined')
          | selectattr('state', 'eq', 'absent') | list }}
-    _hcloud_fw_servers: "{{ _hcloud_fw_entries | selectattr('server', 'defined') | map(attribute='server') | list }}"
-    _hcloud_fw_selectors: "{{ _hcloud_fw_entries | selectattr('label_selector', 'defined') | map(attribute='label_selector') | list }}"
+    _hcloud_fw_targets: "{{ _hcloud_fw_entries | selectattr(_hcloud_fw_key, 'defined') | map(attribute=_hcloud_fw_key) | list }}"
   loop: "{{ hcloud_firewalls }}"
   loop_control:
-    label: "{{ item.name }} bindings to remove"
+    label: "{{ item.name }} {{ _hcloud_fw_key }} bindings to remove"
   register: hcloud_firewall_unbind_results
   when:
     - (item.state | default(hcloud_state)) == _hcloud_phase
     - (item.state | default(hcloud_state)) != 'absent'
-    - (_hcloud_fw_servers + _hcloud_fw_selectors) | length > 0
+    - _hcloud_fw_targets | length > 0
   # A server that is already gone has no binding left, so unbinding it is a
   # no-op; this keeps re-runs after a server deletion green.
   failed_when: >-

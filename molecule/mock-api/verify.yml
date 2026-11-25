@@ -255,6 +255,9 @@
                     label_selector:
                       selector: role=old
 
+    # Two apply_to_resources calls on the first run: the label selector
+    # before the server is created (no window without the firewall), then
+    # the server entry once web-01 exists.
     - name: Assert the firewall was bound and the absent binding removed once
       vars:
         server_id: "{{ (mock_state.servers | selectattr('name', 'eq', 'web-01') | first).id }}"
@@ -264,7 +267,10 @@
       ansible.builtin.assert:
         that:
           - mock_case_runs.results | map(attribute='rc') | list == [0, 0]
-          - mock_requests | select('match', 'POST /firewalls/600/actions/apply_to_resources') | list | length == 1
+          - mock_requests | select('match', 'POST /firewalls/600/actions/apply_to_resources') | list | length == 2
+          - >-
+            mock_requests.index('POST /firewalls/600/actions/apply_to_resources')
+            < mock_requests.index('POST /servers')
           - mock_requests | select('match', 'POST /firewalls/600/actions/remove_from_resources') | list | length == 1
           - selectors == ['role=web']
           - bound_servers == [server_id | int]
@@ -273,7 +279,7 @@
           Firewall bindings are wrong or not idempotent.
           Applied to: {{ applied }}. Requests: {{ mock_requests }}
           Outputs: {{ mock_case_runs.results | map(attribute='stdout_lines') | map('last') | list }}
-        success_msg: "Firewall bound to the new server and role=web; role=old removed; second run unchanged"
+        success_msg: "role=web bound before the server was created, then the new server; role=old removed; second run unchanged"
 
     - name: Case - location-only volume attached at server creation, twice
       ansible.builtin.include_tasks: tasks/run_case.yml

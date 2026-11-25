@@ -104,6 +104,25 @@
         - hcloud
         - firewalls
 
+    # Before the servers, so Hetzner applies a label-selector firewall to a
+    # matching server when it is created (no window without the firewall).
+    - name: Bind firewalls to label selectors
+      ansible.builtin.include_tasks:
+        file: firewall_bindings.yml
+        apply:
+          tags:
+            - hcloud
+            - firewalls
+      vars:
+        _hcloud_phase: present
+        _hcloud_fw_key: label_selector
+      when: >-
+        hcloud_firewalls | map(attribute='apply_to', default=[])
+        | flatten | selectattr('label_selector', 'defined') | list | length > 0
+      tags:
+        - hcloud
+        - firewalls
+
     - name: Manage placement groups
       ansible.builtin.include_tasks:
         file: placement_groups.yml
@@ -172,7 +191,7 @@
 
     # After the servers, so apply_to 'server' entries can bind to servers
     # created in this run.
-    - name: Bind firewalls to resources
+    - name: Bind firewalls to servers
       ansible.builtin.include_tasks:
         file: firewall_bindings.yml
         apply:
@@ -181,9 +200,10 @@
             - firewalls
       vars:
         _hcloud_phase: present
+        _hcloud_fw_key: server
       when: >-
         hcloud_firewalls | map(attribute='apply_to', default=[])
-        | flatten | length > 0
+        | flatten | selectattr('server', 'defined') | list | length > 0
       tags:
         - hcloud
         - firewalls
